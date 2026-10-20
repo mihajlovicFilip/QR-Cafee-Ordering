@@ -9,10 +9,13 @@ const GuestApp = lazy(() => import('./features/guest/GuestApp'));
 const WaiterApp = lazy(() => import('./features/waiter/WaiterApp'));
 const AdminApp = lazy(() => import('./features/admin/AdminApp'));
 
+// '/' locally, '/QR-Cafee-Ordering' on GitHub Pages (see vite.config.ts).
+const BASENAME = import.meta.env.BASE_URL.replace(/\/+$/, '') || '/';
+
 export default function App() {
   const { t } = useI18n();
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={BASENAME}>
       <Suspense fallback={<Spinner label={t('common.loading')} />}>
         <Routes>
           <Route path="/" element={<ToastProvider><Home /></ToastProvider>} />

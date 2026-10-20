@@ -18,7 +18,8 @@ const STATE_TONE: Record<TableState, string> = {
 };
 const STATE_LABEL: Record<TableState, string> = { free: 'waiter.tableFree', occupied: 'waiter.tableOccupied', new: 'waiter.tableNew', preparing: 'waiter.tablePreparing' };
 
-const placeUrl = (token: string) => `${window.location.origin}/t/${token}`;
+// BASE_URL keeps the sub-folder when the app is hosted in one (GitHub Pages).
+const placeUrl = (token: string) => `${window.location.origin}${import.meta.env.BASE_URL}t/${token}`;
 
 /** Empty → no floor; otherwise a whole number 0..MAX_FLOOR, or undefined when invalid. */
 function parseFloor(raw: string): number | null | undefined {

@@ -48,6 +48,15 @@ update public.dining_tables set qr_token = replace(gen_random_uuid()::text, '-',
 
 Za produkciju preporučujemo i CAPTCHA za anonimnu prijavu (*Authentication → Attack Protection*).
 
+## Objava na GitHub Pages
+
+Workflow `.github/workflows/deploy-pages.yml` na svaki push na `main` napravi build i objavi ga na `https://<korisnik>.github.io/<repozitorijum>/`.
+
+1. Jednom: na GitHub-u **Settings → Pages → Build and deployment → Source** izaberite **GitHub Actions**.
+2. Svaki `git push` na `main` posle toga sam objavljuje novu verziju (tab **Actions** pokazuje napredak).
+
+Bez Supabase ključeva objavljena verzija radi u demo režimu, pa svaki uređaj ima svoje podatke. Da bi porudžbine sa telefona stizale konobaru na drugom uređaju, u **Settings → Secrets and variables → Actions** dodajte `VITE_SUPABASE_URL` i `VITE_SUPABASE_ANON_KEY` i prosledite ih koraku *Build* u workflow-u.
+
 ## Kako je zaštićeno
 
 - Svaka izmena ide kroz funkcije u bazi (`place_order`, `accept_order`, `reject_order`, `extend_order`, `mark_order_ready`, `mark_order_served`, `call_waiter`, `resolve_call`, i za administraciju `admin_*`). Direktan upis u tabele je zabranjen.
