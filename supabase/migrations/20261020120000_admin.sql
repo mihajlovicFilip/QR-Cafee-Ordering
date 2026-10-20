@@ -1,4 +1,4 @@
--- Stolić — phase 2: administrator panel (menu, tables and QR codes, staff, café settings).
+-- Stočić — phase 2: administrator panel (menu, tables and QR codes, staff, café settings).
 --
 -- Same model as phase 1: the browser never writes tables directly. Every admin change goes
 -- through a SECURITY DEFINER function that first checks that the caller is an active owner or

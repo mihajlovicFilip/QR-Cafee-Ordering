@@ -1,4 +1,4 @@
--- Stolić — phase 1 schema: multi-tenant cafés, menu, tables, staff, live orders.
+-- Stočić — phase 1 schema: multi-tenant cafés, menu, tables, staff, live orders.
 --
 -- Security model
 --   * Guests never register. The app signs them in with Supabase anonymous auth, so each

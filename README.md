@@ -1,4 +1,4 @@
-# Stolić — QR poručivanje za kafiće
+# Stočić — QR poručivanje za kafiće
 
 Gost skenira QR kod na stolu i poruči sa telefona, bez registracije. Konobar porudžbinu prihvati ili odbije i izabere vreme pripreme, a gost uživo vidi odbrojavanje i status. Interfejs je na srpskom (latinica) i engleskom.
 

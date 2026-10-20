@@ -44,7 +44,7 @@ export function StaffLogin({ onSignedIn, variant = 'waiter', roles }: {
       <header className="flex items-center justify-between px-6 py-5">
         <Link to="/" className="flex items-center gap-2.5 rounded-lg no-underline">
           <span className="flex size-9 items-center justify-center rounded-[10px] bg-espresso font-serif text-xl font-semibold text-tint">S</span>
-          <span className="font-serif text-lg font-semibold text-ink">Stolić</span>
+          <span className="font-serif text-lg font-semibold text-ink">Stočić</span>
         </Link>
         <LangSwitch />
       </header>

@@ -1,4 +1,4 @@
--- Stolić — hotel rooms (room service) next to tables.
+-- Stočić — hotel rooms (room service) next to tables.
 --
 -- A room is a dining_tables row with kind = 'room': it has its own QR code, guests order
 -- exactly like at a table, and the waiter delivers to the room. Rooms have no "call waiter"

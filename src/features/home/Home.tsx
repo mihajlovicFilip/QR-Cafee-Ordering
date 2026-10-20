@@ -18,7 +18,7 @@ export default function Home() {
   };
 
   useEffect(() => {
-    document.title = 'Stolić';
+    document.title = 'Stočić';
     refreshTables();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -34,7 +34,7 @@ export default function Home() {
       <header className="flex items-center justify-between py-6">
         <div className="flex items-center gap-2.5">
           <span className="flex size-10 items-center justify-center rounded-xl bg-espresso font-serif text-[22px] font-semibold text-tint" aria-hidden>S</span>
-          <span className="font-serif text-xl font-semibold">Stolić</span>
+          <span className="font-serif text-xl font-semibold">Stočić</span>
           {demo ? <span className="ml-1 rounded-full bg-tint px-2.5 py-1 text-xs font-semibold text-copper-ink">{t('common.demoBadge')}</span> : null}
         </div>
         <LangSwitch />

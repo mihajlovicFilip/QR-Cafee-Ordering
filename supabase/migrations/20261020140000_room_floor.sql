@@ -1,4 +1,4 @@
--- Stolić — a floor for every room.
+-- Stočić — a floor for every room.
 --
 -- Rooms get an explicit floor (0 = ground floor, null = not set), entered when rooms are added
 -- or edited, so numbering that does not follow "402 = floor 4" still shows the right floor.
