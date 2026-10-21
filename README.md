@@ -3,7 +3,7 @@
 Gost skenira QR kod na stolu i poruči sa telefona, bez registracije. Konobar porudžbinu prihvati ili odbije i izabere vreme pripreme, a gost uživo vidi odbrojavanje i status. Interfejs je na srpskom (latinica) i engleskom.
 
 **Faza 1:** ceo tok porudžbine — meni za gosta, korpa, slanje, praćenje uživo, konobarski panel (nove / aktivne / završene porudžbine, stolovi, pozivi konobara).
-**Faza 2:** administratorski panel na `/admin` (samo vlasnik i menadžeri): pregled dana, meni (kategorije, proizvodi na dva jezika, cene, dostupnost, opcije, fotografije), stolovi i QR kodovi (PNG po stolu, PDF za štampu sa 4 kartice po A4 strani, novi kod), osoblje (uloge, pristup, dodavanje) i podešavanja lokala.
+**Faza 2:** administratorski panel na `/admin` (samo vlasnik i menadžeri): pregled za danas, poslednjih 7 ili 30 dana ili jedan izabrani dan iz poslednjih 30 (porudžbine, promet, vreme pripreme, grafikon po satu ili po danu, najprodavanije, spisak porudžbina tog dana), meni (kategorije, proizvodi na dva jezika, cene, dostupnost, opcije, fotografije), stolovi i QR kodovi (PNG po stolu, PDF za štampu sa 4 kartice po A4 strani, novi kod), osoblje (uloge, pristup, dodavanje) i podešavanja lokala.
 **Sobe (room service):** pored stolova postoje i sobe sa svojim QR kodovima. Gost u sobi poručuje isto kao za stolom (bez dugmeta „Pozovi konobara“), konobar vidi oznaku „Sobna usluga“, a u adminu se sobe dodaju opsegom brojeva (npr. 101–130) sa spratom (0 = prizemlje; predlaže se iz broja, 401 → 4. sprat, ali može da se promeni). Demo ima 90 soba: 101–130, 201–230, 301–330.
 
 ## Pokretanje
@@ -23,7 +23,7 @@ Bez podešavanja aplikacija radi u **demo režimu**: podaci se čuvaju u pregled
 
 1. Napravite projekat na [supabase.com](https://supabase.com) (besplatan plan je dovoljan).
 2. **SQL Editor** → nalepite i pokrenite, ovim redom, sve fajlove iz `supabase/migrations/`:
-   `20261020000000_init.sql` (šema, porudžbine), `20261020120000_admin.sql` (administracija, fotografije), `20261020130000_rooms.sql` (sobe), `20261020140000_room_floor.sql` (sprat sobe), `20261020150000_hardening.sql` (zaštita od istovremenih zahteva i suvišnih privilegija).
+   `20261020000000_init.sql` (šema, porudžbine), `20261020120000_admin.sql` (administracija, fotografije), `20261020130000_rooms.sql` (sobe), `20261020140000_room_floor.sql` (sprat sobe), `20261020150000_hardening.sql` (zaštita od istovremenih zahteva i suvišnih privilegija), `20261021090000_order_stats.sql` (statistika za pregled).
 3. **SQL Editor** → pokrenite `supabase/seed.sql` (demo kafić *Kafeterija Lipa*, meni na dva jezika, 12 stolova i 90 soba). Seed mora posle svih migracija.
 4. **Authentication → Sign In / Providers** → uključite **Allow anonymous sign-ins** (gosti se ne registruju, ali dobijaju anonimnu sesiju da bi videli samo svoje porudžbine).
 5. **Authentication → Users → Add user** za svakog konobara (uz *Auto Confirm User*), pa ga povežite sa kafićem preko `supabase/link_staff.sql`.
@@ -32,7 +32,7 @@ Bez podešavanja aplikacija radi u **demo režimu**: podaci se čuvaju u pregled
 
 ### Administracija (faza 2)
 
-8. Migracija `20261020120000_admin.sql` iz koraka 2 dodaje funkcije `admin_*` (sve proveravaju da je pozivalac aktivan vlasnik ili menadžer tog kafića preko `is_manager`), Storage bucket `product-images` za fotografije proizvoda i pravila da menadžeri otpremaju samo u fasciklu svog kafića. Ako ste bazu podesili ranije, pokrenite redom one migracije koje još niste (sve su bez gubitka podataka; poslednja je `20261020150000_hardening.sql`).
+8. Migracija `20261020120000_admin.sql` iz koraka 2 dodaje funkcije `admin_*` (sve proveravaju da je pozivalac aktivan vlasnik ili menadžer tog kafića preko `is_manager`), Storage bucket `product-images` za fotografije proizvoda i pravila da menadžeri otpremaju samo u fasciklu svog kafića. Ako ste bazu podesili ranije, pokrenite redom one migracije koje još niste (sve su bez gubitka podataka; poslednja je `20261021090000_order_stats.sql`).
 9. Vlasnika povežite preko `supabase/link_staff.sql` sa ulogom `'owner'` i prijavite se na `/admin` istim nalogom kao na `/waiter`.
 10. **Dodavanje osoblja iz panela** traži `service_role` ključ, pa radi kroz Edge funkciju (ključ nikad ne ide u pregledač):
     ```bash
@@ -100,7 +100,7 @@ src/
   components/    dugmad, bedževi, dijalog, prekidač, obaveštenja, prijava osoblja
   lib/           osvežavanje uživo, sat, statusi, zvuk, QR kartice i PDF, smanjivanje slika
 supabase/
-  migrations/    šema, RLS, funkcije, realtime; _admin.sql za administraciju; _rooms.sql i _room_floor.sql za sobe; _hardening.sql
+  migrations/    šema, RLS, funkcije, realtime; _admin.sql za administraciju; _rooms.sql i _room_floor.sql za sobe; _hardening.sql; _order_stats.sql
   functions/     invite-staff (dodavanje osoblja, koristi service_role)
   seed.sql       demo kafić (12 stolova, 90 soba)
   link_staff.sql šablon za povezivanje konobara

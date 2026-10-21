@@ -198,6 +198,25 @@ export interface StaffMember {
   email: string | null;
 }
 
+/** Order statistics for a period (today, the last 7 or 30 days, one chosen day), grouped in the café's time zone. */
+export interface OrderStats {
+  /** Orders that were not rejected (pending ones included). */
+  orders: number;
+  rejected: number;
+  /** Total of accepted orders (not pending, not rejected), in RSD. */
+  revenue: number;
+  roomOrders: number;
+  /** Average minutes from "accept" to "ready", one decimal; null without such orders. */
+  prepMinutes: number | null;
+  prepCount: number;
+  /** Every calendar day of the period, oldest first, including days without orders. */
+  byDay: { day: string; orders: number; revenue: number }[];
+  /** Hours (0–23) that had orders, rejected ones included. */
+  byHour: { hour: number; orders: number }[];
+  /** Best sellers by quantity, at most five. */
+  top: { key: string; name: Localized; qty: number; revenue: number }[];
+}
+
 export interface StaffInvite {
   name: string;
   email: string;
@@ -254,8 +273,10 @@ export interface Backend {
   resolveCall(callId: string): Promise<void>;
 
   // Admin (owner / manager only — every call is re-checked on the server)
-  /** Orders created at or after `since` (epoch ms), newest first. */
-  adminOrders(cafeId: string, since: number): Promise<Order[]>;
+  /** Orders created in [since, until) (epoch ms; no `until` = up to now), newest first. */
+  adminOrders(cafeId: string, since: number, until?: number): Promise<Order[]>;
+  /** Totals for [since, until) (no `until` = up to now), with days counted in `timeZone` (IANA name, e.g. Europe/Belgrade). */
+  orderStats(cafeId: string, since: number, until: number | null, timeZone: string): Promise<OrderStats>;
   cafeSettings(cafeId: string): Promise<CafeSettings>;
   updateCafe(cafeId: string, input: CafeSettingsInput): Promise<void>;
   adminMenu(cafeId: string): Promise<AdminMenu>;

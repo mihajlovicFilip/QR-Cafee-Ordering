@@ -9,6 +9,7 @@ import {
   type DiningTable,
   type Order,
   type OrderItem,
+  type OrderStats,
   type Product,
   type StaffMember,
   type StaffSession,
@@ -271,17 +272,26 @@ export function createSupabaseBackend(url: string, key: string): Backend {
 
     // ─────────────────────────────── admin (owner / manager; enforced by the admin_* functions and RLS)
 
-    async adminOrders(cafeId, since) {
-      const { data, error } = await staff
+    async adminOrders(cafeId, since, until) {
+      let q = staff
         .from('orders')
         .select('*, order_items(*)')
         .eq('cafe_id', cafeId)
-        .gte('created_at', new Date(since).toISOString())
-        .order('created_at', { ascending: false })
-        .limit(2000);
+        .gte('created_at', new Date(since).toISOString());
+      if (until !== undefined) q = q.lt('created_at', new Date(until).toISOString());
+      // One page is at most 1000 rows (the API limit): plenty for a day; totals come from orderStats.
+      const { data, error } = await q.order('created_at', { ascending: false }).limit(1000);
       if (error) throw toApiError(error);
       return (data ?? []).map(toOrder);
     },
+
+    orderStats: (cafeId, since, until, timeZone) =>
+      rpc<OrderStats>(staff, 'admin_order_stats', {
+        p_cafe: cafeId,
+        p_since: new Date(since).toISOString(),
+        p_until: until === null ? null : new Date(until).toISOString(),
+        p_tz: timeZone,
+      }),
 
     async cafeSettings(cafeId) {
       const { data, error } = await staff.from('cafes').select('*').eq('id', cafeId).single();

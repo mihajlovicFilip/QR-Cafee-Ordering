@@ -6,6 +6,7 @@
 import { DEMO_CAFE, DEMO_CATEGORIES, DEMO_PRODUCTS, DEMO_ROOMS, DEMO_STAFF, DEMO_TABLES } from './seedData';
 import { resolveChoice } from './pricing';
 import { floorFromNumber, MAX_FLOOR } from '../lib/orderView';
+import { computeOrderStats } from './stats';
 import {
   ApiError,
   MANAGER_ROLES,
@@ -51,7 +52,7 @@ interface DemoMenu {
   staff: StaffMember[];
 }
 interface DemoDb extends DemoMenu {
-  /** 2 = tables and rooms, 3 = rooms have a floor. Older saved data is upgraded in read(). */
+  /** 2 = tables and rooms, 3 = rooms have a floor, 4 = a month of history. Older data is upgraded in read(). */
   v?: number;
   orders: DemoOrder[];
   calls: DemoCall[];
@@ -117,27 +118,34 @@ function seedMenu(): DemoMenu {
 
 const staffName = (id: string) => DEMO_STAFF.find((s) => s.id === id)!.name;
 
-/** Served orders spread over the earlier hours of today, so the admin overview has something to show. */
-function history(now: number, firstNumber: number): DemoOrder[] {
-  const midnight = new Date(now).setHours(0, 0, 0, 0);
-  const start = Math.max(midnight + 7 * 60 * MIN, now - 9 * 60 * MIN);
-  const end = now - 60 * MIN;
-  if (end <= start) return [];
+/**
+ * Served (and a few rejected) orders between `from` and `to`, during opening hours (07–23),
+ * so the admin overview has a month of history to show. Numbers are filled in by the caller.
+ */
+function history(from: number, to: number): DemoOrder[] {
   let s = 20261020;
   const rand = () => (s = (s * 16807) % 2147483647) / 2147483647;
   const pool = DEMO_PRODUCTS.filter((p) => p.available);
+  const tables = DEMO_TABLES.length;
   const out: DemoOrder[] = [];
-  for (let slot = start; slot < end; slot += 30 * MIN) {
-    const hour = new Date(slot).getHours();
-    const busy = hour === 8 || hour === 9 || hour === 13 || hour === 14 || hour === 18 ? 2 : 0;
-    const count = Math.floor(rand() * 3) + busy;
+  for (let slot = from; slot < to; slot += 30 * MIN) {
+    const d = new Date(slot);
+    const hour = d.getHours();
+    if (hour < 7 || hour >= 23) continue;
+    const weekend = d.getDay() === 0 || d.getDay() === 6;
+    const peak = hour === 8 || hour === 9 || hour === 13 || hour === 14 || hour === 18 || hour === 19;
+    const count = Math.floor(rand() * (weekend ? 3 : 2)) + (peak ? 1 : 0);
     for (let i = 0; i < count; i++) {
-      const createdAt = Math.min(end, slot + rand() * 30 * MIN);
+      const createdAt = Math.min(to, slot + rand() * 30 * MIN);
       const items = Array.from({ length: 1 + Math.floor(rand() * 3) }, () => item(DEMO_PRODUCTS, pool[Math.floor(rand() * pool.length)].id, 1 + Math.floor(rand() * 2)));
       const waiter = rand() < 0.5 ? 'ana' : 'marko';
-      const tableNumber = 1 + Math.floor(rand() * DEMO_TABLES.length);
+      // Now and then room service, mostly tables.
+      const room = rand() < 0.12 ? DEMO_ROOMS[Math.floor(rand() * DEMO_ROOMS.length)] : null;
+      const place = room
+        ? { tableNumber: room.number, tableId: room.id, tableKind: 'room' as const }
+        : { tableNumber: 1 + Math.floor(rand() * tables) };
       if (rand() < 0.06) {
-        out.push(order({ number: 0, tableNumber, createdAt, items, status: 'rejected', rejectedAt: createdAt + MIN, rejectReason: 'unavailable', waiterId: waiter, waiterName: staffName(waiter) }));
+        out.push(order({ number: 0, ...place, createdAt, items, status: 'rejected', rejectedAt: createdAt + MIN, rejectReason: 'unavailable', waiterId: waiter, waiterName: staffName(waiter) }));
         continue;
       }
       const acceptedAt = createdAt + (20 + rand() * 70) * 1000;
@@ -145,17 +153,23 @@ function history(now: number, firstNumber: number): DemoOrder[] {
       const readyAt = acceptedAt + Math.max(2, prep + rand() * 6 - 3) * MIN;
       out.push(
         order({
-          number: 0, tableNumber, createdAt, items, status: 'served',
+          number: 0, ...place, createdAt, items, status: 'served',
           acceptedAt, prepMinutes: prep, deadline: acceptedAt + prep * MIN, waiterId: waiter, waiterName: staffName(waiter),
           readyAt, servedAt: readyAt + (1 + rand() * 3) * MIN,
         }),
       );
     }
   }
-  out.sort((a, b) => a.createdAt - b.createdAt);
-  out.forEach((o, i) => (o.number = firstNumber - out.length + i));
-  return out;
+  return out.sort((a, b) => a.createdAt - b.createdAt);
 }
+
+/** Midnight 29 days ago: with today, the last 30 days of the admin overview. */
+const monthAgo = (now: number) => {
+  const d = new Date(now);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - 29);
+  return d.getTime();
+};
 
 function seed(): DemoDb {
   const now = Date.now();
@@ -167,20 +181,23 @@ function seed(): DemoDb {
     waiterId: waiter,
     waiterName: staffName(waiter),
   });
+  const past = history(monthAgo(now), now - 60 * MIN);
+  past.forEach((o, i) => (o.number = 1001 + i));
+  const n = 1001 + past.length; // the orders below are the newest, in this order
   return {
     ...seedMenu(),
-    v: 3,
+    v: 4,
     calls: [],
     orders: [
-      ...history(now, 1035),
-      order({ number: 1042, tableNumber: 3, createdAt: now - 2 * MIN - 15_000, note: 'Bez šećera u kafi, molim.', items: [item(products, 'p2', 2, { size: 's', milk: 'oat' }), item(products, 'p12', 1)] }),
-      order({ number: 1041, tableNumber: 12, createdAt: now - 9 * MIN, status: 'preparing', ...accepted(6 * MIN + 20_000, 10, 'marko'), items: [item(products, 'p10', 2, { egg: 'poached' }), item(products, 'p8', 2, { ice: 'no' })] }),
-      order({ number: 1040, tableNumber: 9, createdAt: now - 5 * MIN, status: 'preparing', ...accepted(4 * MIN + 30_000, 5, 'ana'), items: [item(products, 'p4', 2, { sugar: 'some' }), item(products, 'p14', 1)] }),
-      order({ number: 1039, tableNumber: 5, createdAt: now - 14 * MIN, status: 'ready', ...accepted(12 * MIN, 10, 'ana'), readyAt: now - 90_000, items: [item(products, 'p15', 2), item(products, 'p9', 1)] }),
-      order({ number: 1038, tableNumber: 214, tableId: 'demo-r214', tableKind: 'room', createdAt: now - 20 * MIN, note: 'Molim vas, pokucajte tiho — beba spava.', status: 'preparing', ...accepted(18 * MIN, 25, 'marko'), items: [item(products, 'p10', 2, { egg: 'scrambled' }), item(products, 'p2', 2, { size: 'l' }), item(products, 'p8', 1)] }),
-      order({ number: 1037, tableNumber: 2, createdAt: now - 38 * MIN, status: 'served', ...accepted(37 * MIN, 10, 'marko'), readyAt: now - 26 * MIN, servedAt: now - 25 * MIN, items: [item(products, 'p3', 1), item(products, 'p11', 1)] }),
-      order({ number: 1036, tableNumber: 10, createdAt: now - 46 * MIN, status: 'rejected', rejectedAt: now - 45 * MIN, rejectReason: 'duplicate', waiterId: 'ana', waiterName: staffName('ana'), items: [item(products, 'p16', 4)] }),
-      order({ number: 1035, tableNumber: 4, createdAt: now - 52 * MIN, status: 'served', ...accepted(51 * MIN, 3, 'ana'), readyAt: now - 48 * MIN, servedAt: now - 47 * MIN, items: [item(products, 'p1', 2, { shot: 'double' })] }),
+      ...past,
+      order({ number: n + 7, tableNumber: 3, createdAt: now - 2 * MIN - 15_000, note: 'Bez šećera u kafi, molim.', items: [item(products, 'p2', 2, { size: 's', milk: 'oat' }), item(products, 'p12', 1)] }),
+      order({ number: n + 6, tableNumber: 12, createdAt: now - 9 * MIN, status: 'preparing', ...accepted(6 * MIN + 20_000, 10, 'marko'), items: [item(products, 'p10', 2, { egg: 'poached' }), item(products, 'p8', 2, { ice: 'no' })] }),
+      order({ number: n + 5, tableNumber: 9, createdAt: now - 5 * MIN, status: 'preparing', ...accepted(4 * MIN + 30_000, 5, 'ana'), items: [item(products, 'p4', 2, { sugar: 'some' }), item(products, 'p14', 1)] }),
+      order({ number: n + 4, tableNumber: 5, createdAt: now - 14 * MIN, status: 'ready', ...accepted(12 * MIN, 10, 'ana'), readyAt: now - 90_000, items: [item(products, 'p15', 2), item(products, 'p9', 1)] }),
+      order({ number: n + 3, tableNumber: 214, tableId: 'demo-r214', tableKind: 'room', createdAt: now - 20 * MIN, note: 'Molim vas, pokucajte tiho — beba spava.', status: 'preparing', ...accepted(18 * MIN, 25, 'marko'), items: [item(products, 'p10', 2, { egg: 'scrambled' }), item(products, 'p2', 2, { size: 'l' }), item(products, 'p8', 1)] }),
+      order({ number: n + 2, tableNumber: 2, createdAt: now - 38 * MIN, status: 'served', ...accepted(37 * MIN, 10, 'marko'), readyAt: now - 26 * MIN, servedAt: now - 25 * MIN, items: [item(products, 'p3', 1), item(products, 'p11', 1)] }),
+      order({ number: n + 1, tableNumber: 10, createdAt: now - 46 * MIN, status: 'rejected', rejectedAt: now - 45 * MIN, rejectReason: 'duplicate', waiterId: 'ana', waiterName: staffName('ana'), items: [item(products, 'p16', 4)] }),
+      order({ number: n, tableNumber: 4, createdAt: now - 52 * MIN, status: 'served', ...accepted(51 * MIN, 3, 'ana'), readyAt: now - 48 * MIN, servedAt: now - 47 * MIN, items: [item(products, 'p1', 2, { shot: 'double' })] }),
     ],
   };
 }
@@ -204,9 +221,10 @@ function read(): DemoDb {
 /**
  * Older saved data. Before v2 every place was a table: mark them and add the demo rooms.
  * Before v3 rooms had no floor: take it from the number (402 → floor 4), like the SQL migration.
+ * Before v4 there was only one day of history: add the rest of the month before the oldest order.
  */
 function upgrade(db: DemoDb): DemoDb {
-  if (db.v === 3) return db;
+  if (db.v === 4) return db;
   if (!db.v || db.v < 2) {
     for (const t of db.tables) t.kind ??= 'table';
     for (const o of db.orders) o.tableKind ??= 'table';
@@ -216,7 +234,15 @@ function upgrade(db: DemoDb): DemoDb {
   for (const t of db.tables) {
     if (t.floor === undefined) t.floor = t.kind === 'room' ? floorFromNumber(t.number) : null;
   }
-  db.v = 3;
+  if (!db.v || db.v < 4) {
+    const now = Date.now();
+    const oldest = db.orders.reduce((m, o) => Math.min(m, o.createdAt), now - 60 * MIN);
+    const past = history(monthAgo(now), oldest);
+    let next = db.orders.reduce((m, o) => Math.max(m, o.number), 1000);
+    for (const o of past) o.number = ++next; // numbers stay unique; their order does not matter here
+    db.orders.unshift(...past);
+  }
+  db.v = 4;
   return db;
 }
 
@@ -545,14 +571,22 @@ export function createDemoBackend(): Backend {
 
     // ─────────────────────────────── admin
 
-    async adminOrders(_cafeId, since) {
+    async adminOrders(_cafeId, since, until) {
       await wait(60);
       const db = read();
       managerOrThrow(db);
       return db.orders
-        .filter((o) => o.createdAt >= since)
+        .filter((o) => o.createdAt >= since && (until === undefined || o.createdAt < until))
         .sort((a, b) => b.createdAt - a.createdAt)
         .map(strip);
+    },
+
+    async orderStats(_cafeId, since, until) {
+      await wait(60);
+      const db = read();
+      managerOrThrow(db);
+      // The demo runs in the browser, so its time zone is the browser's (what the overview sends too).
+      return computeOrderStats(db.orders, since, until);
     },
 
     async cafeSettings() {
