@@ -1,8 +1,16 @@
-// In-browser backend for trying the product without a Supabase project.
-// Data lives in localStorage; every tab of the same browser sees changes live
-// (BroadcastChannel + storage events), so a guest tab and a waiter tab talk to each other.
-// It follows the same rules as the SQL functions: server-side prices, atomic claims,
-// only the allowed status transitions, and admin changes for owners and managers only.
+/**
+ * The demo backend — the whole product in the browser, no Supabase project needed.
+ *
+ * Data lives in localStorage, and every tab of the same browser sees changes live
+ * (BroadcastChannel + storage events), so a guest tab and a waiter tab talk to each other. It
+ * follows the same rules as the SQL functions: server-side prices, atomic claims, only the allowed
+ * status transitions, admin changes for owners and managers only, and the Stočić Café / Stočić
+ * Hotel edition rules. demo.test.ts and tests/db check both against the same scenarios.
+ *
+ * Saved data carries a version (DemoDb.v) and read() upgrades anything older in place, so a
+ * visitor's demo survives every new feature.
+ */
+
 import { DEMO_CAFE, DEMO_CATEGORIES, DEMO_PRODUCTS, DEMO_ROOMS, DEMO_STAFF, DEMO_TABLES } from './seedData';
 import { resolveChoice } from './pricing';
 import { floorFromNumber, MAX_FLOOR } from '../lib/orderView';
@@ -52,7 +60,7 @@ interface DemoMenu {
   staff: StaffMember[];
 }
 interface DemoDb extends DemoMenu {
-  /** 2 = tables and rooms, 3 = rooms have a floor, 4 = a month of history. Older data is upgraded in read(). */
+  /** 2 = tables and rooms, 3 = rooms have a floor, 4 = a month of history, 5 = editions. Older data is upgraded in read(). */
   v?: number;
   orders: DemoOrder[];
   calls: DemoCall[];
@@ -186,7 +194,7 @@ function seed(): DemoDb {
   const n = 1001 + past.length; // the orders below are the newest, in this order
   return {
     ...seedMenu(),
-    v: 4,
+    v: 5,
     calls: [],
     orders: [
       ...past,
@@ -222,9 +230,10 @@ function read(): DemoDb {
  * Older saved data. Before v2 every place was a table: mark them and add the demo rooms.
  * Before v3 rooms had no floor: take it from the number (402 → floor 4), like the SQL migration.
  * Before v4 there was only one day of history: add the rest of the month before the oldest order.
+ * Before v5 there were no editions: rooms make it Stočić Hotel, like the SQL migration.
  */
 function upgrade(db: DemoDb): DemoDb {
-  if (db.v === 4) return db;
+  if (db.v === 5) return db;
   if (!db.v || db.v < 2) {
     for (const t of db.tables) t.kind ??= 'table';
     for (const o of db.orders) o.tableKind ??= 'table';
@@ -242,7 +251,8 @@ function upgrade(db: DemoDb): DemoDb {
     for (const o of past) o.number = ++next; // numbers stay unique; their order does not matter here
     db.orders.unshift(...past);
   }
-  db.v = 4;
+  db.cafe.edition ??= db.tables.some((t) => t.kind === 'room') || db.orders.some((o) => o.tableKind === 'room') ? 'hotel' : 'cafe';
+  db.v = 5;
   return db;
 }
 
@@ -286,10 +296,20 @@ function guestId(): string {
   }
 }
 
+/** The active place behind a QR token; a room only counts for Stočić Hotel (same as guest_table). */
+function placeByToken(db: DemoDb, tok: string) {
+  return db.tables.find((x) => x.token === tok && x.active && (x.kind === 'table' || db.cafe.edition === 'hotel'));
+}
+
 function tableByToken(db: DemoDb, tok: string) {
-  const t = db.tables.find((x) => x.token === tok && x.active);
+  const t = placeByToken(db, tok);
   if (!t) throw new ApiError('invalid_table');
   return t;
+}
+
+/** Rooms are a Stočić Hotel feature (public._require_hotel). */
+function requireHotel(db: DemoDb) {
+  if (db.cafe.edition !== 'hotel') throw new ApiError('hotel_only');
 }
 
 function strip(o: DemoOrder): Order {
@@ -298,8 +318,8 @@ function strip(o: DemoOrder): Order {
 }
 
 function publicCafe(c: CafeSettings): Cafe {
-  const { id, slug, name, accent, defaultLang, allowRepeat, callButton } = c;
-  return { id, slug, name, accent, defaultLang, allowRepeat, callButton };
+  const { id, slug, name, accent, defaultLang, allowRepeat, callButton, edition } = c;
+  return { id, slug, name, accent, defaultLang, allowRepeat, callButton, edition };
 }
 
 function currentStaff(db = read()) {
@@ -387,7 +407,7 @@ export function createDemoBackend(): Backend {
     async loadTable(tok) {
       await wait();
       const db = read();
-      const table = db.tables.find((t) => t.token === tok && t.active);
+      const table = placeByToken(db, tok);
       if (!table) return null;
       return {
         cafe: publicCafe(db.cafe),
@@ -569,7 +589,7 @@ export function createDemoBackend(): Backend {
       });
     },
 
-    // ─────────────────────────────── admin
+    // === Admin =============================================
 
     async adminOrders(_cafeId, since, until) {
       await wait(60);
@@ -712,7 +732,7 @@ export function createDemoBackend(): Backend {
 
     async uploadProductImage(_cafeId, image) {
       managerOrThrow(read());
-      // No storage server in the demo: the (already resized) image is kept inline as a data URL.
+      // No storage server in the demo: the (already resized) image is stored as a data URL.
       return new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(String(reader.result));
@@ -725,6 +745,9 @@ export function createDemoBackend(): Backend {
       await wait();
       return mutate((db) => {
         managerOrThrow(db);
+        // Same order of checks as admin_save_table: an existing place keeps its kind.
+        const placeKind = input.id ? find(db.tables, input.id).kind : input.kind;
+        if (placeKind === 'room') requireHotel(db);
         const number = Math.round(input.number);
         if (!(number >= 1 && number <= 9999)) throw new ApiError('invalid_number');
         const seats = Math.round(input.seats);
@@ -751,6 +774,7 @@ export function createDemoBackend(): Backend {
       mutate((db) => {
         managerOrThrow(db);
         const t = find(db.tables, tableId);
+        if (t.kind === 'room') requireHotel(db);
         if (db.orders.some((o) => o.tableId === tableId)) {
           t.active = false;
           db.calls.forEach((c) => {
@@ -766,6 +790,7 @@ export function createDemoBackend(): Backend {
       await wait();
       return mutate((db) => {
         managerOrThrow(db);
+        requireHotel(db);
         if (!Number.isInteger(from) || !Number.isInteger(to) || from < 1 || to > 9999 || to < from || to - from >= 300) throw new ApiError('invalid_range');
         checkFloor(floor);
         const taken = new Set(db.tables.filter((t) => t.active && t.kind === 'room').map((t) => t.number));
@@ -784,6 +809,7 @@ export function createDemoBackend(): Backend {
       return mutate((db) => {
         managerOrThrow(db);
         const t = find(db.tables, tableId);
+        if (t.kind === 'room') requireHotel(db);
         t.token = `demo-${token()}`;
         return t.token;
       });
@@ -835,6 +861,13 @@ export function createDemoBackend(): Backend {
 
     resetDemo() {
       write(seed());
+    },
+    demoEdition: () => read().cafe.edition,
+    setDemoEdition(edition) {
+      // Rooms stay in the data: back on Stočić Hotel they work again, as for a real establishment.
+      mutate((db) => {
+        db.cafe.edition = edition;
+      });
     },
   };
 }

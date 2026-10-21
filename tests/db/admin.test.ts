@@ -1,4 +1,5 @@
-// The menu and café settings functions: validation and clean-up of what the admin panel sends.
+/** Menu and café settings functions — validation and clean-up of what the admin panel sends. */
+
 import { beforeAll, describe, expect, it } from 'vitest';
 import type pg from 'pg';
 import { createCafe, testDb, type Cafe } from './db';

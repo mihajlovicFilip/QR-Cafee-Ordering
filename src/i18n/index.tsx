@@ -1,3 +1,12 @@
+/**
+ * Translations — Serbian (the base language) and English, plurals and formats.
+ *
+ * UI text lives in sr.json and en.json under the same keys; a key missing in a language falls back
+ * to Serbian. Serbian plurals have three forms (1 / 2–4 / 5+), English two. Content stored in the
+ * database as {"sr": …, "en": …} is picked with loc(). Prices are always RSD; only the digit
+ * grouping follows the language.
+ */
+
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { Localized } from '../api/types';
 import sr from './sr.json';

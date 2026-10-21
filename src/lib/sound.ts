@@ -1,3 +1,5 @@
+/** The new-order chime — two short notes from the Web Audio API, no sound file. */
+
 let ctx: AudioContext | null = null;
 
 /** A soft two-note chime. Browsers only allow sound after the user has interacted with the page once. */

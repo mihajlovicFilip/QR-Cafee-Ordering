@@ -1,3 +1,5 @@
+/** Toasts — short confirmations and errors at the bottom of the screen. */
+
 import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
 import { Check, CircleAlert } from 'lucide-react';
 

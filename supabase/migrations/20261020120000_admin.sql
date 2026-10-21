@@ -6,7 +6,7 @@
 --
 -- Run after 20261020000000_init.sql (Supabase → SQL Editor → paste → Run).
 
--- ─────────────────────────────────────────────────────────────── schema changes
+-- === Schema changes =============================================
 
 -- A removed table keeps its row (orders point at it) but must not block its number,
 -- so the number only has to be unique among active tables.
@@ -14,7 +14,7 @@ alter table public.dining_tables drop constraint if exists dining_tables_cafe_id
 create unique index if not exists dining_tables_active_number_idx
   on public.dining_tables (cafe_id, number) where active;
 
--- ─────────────────────────────────────────────────────────────── helpers
+-- === Helpers =============================================
 
 create or replace function public.is_manager(p_cafe uuid)
 returns boolean
@@ -138,7 +138,7 @@ as $$
   end;
 $$;
 
--- ─────────────────────────────────────────────────────────────── café settings
+-- === Café settings =============================================
 
 -- p_settings: {"name","accent","defaultLang","allowRepeat","callButton","phone","email","address",
 --              "openingHours":{"weekdays","saturday","sunday"}}
@@ -181,7 +181,7 @@ begin
 end;
 $$;
 
--- ─────────────────────────────────────────────────────────────── menu
+-- === Menu =============================================
 
 -- p_category: {"id"?: uuid, "name": {"sr","en"}, "icon"}. Returns the category id.
 create or replace function public.admin_save_category(p_cafe uuid, p_category jsonb)
@@ -334,7 +334,7 @@ begin
 end;
 $$;
 
--- ─────────────────────────────────────────────────────────────── tables and QR codes
+-- === Tables and QR codes =============================================
 
 -- p_table: {"id"?, "number", "seats", "zone"}. A new table gets a random 32-character QR token.
 create or replace function public.admin_save_table(p_cafe uuid, p_table jsonb)
@@ -423,7 +423,7 @@ begin
 end;
 $$;
 
--- ─────────────────────────────────────────────────────────────── staff
+-- === Staff =============================================
 
 -- The team with login emails (auth.users is not readable from the browser).
 create or replace function public.admin_staff(p_cafe uuid)
@@ -536,7 +536,7 @@ begin
 end;
 $$;
 
--- ─────────────────────────────────────────────────────────────── product photos (Storage)
+-- === Product photos (Storage) =============================================
 
 -- Public bucket: anyone can view a photo by URL (guests need that), only managers can upload,
 -- and only into their own café's folder ("<cafe id>/<file>").
@@ -566,7 +566,7 @@ create policy "managers delete product images" on storage.objects
   for delete to authenticated
   using (bucket_id = 'product-images' and public.is_manager(public.cafe_from_storage_path(name)));
 
--- ─────────────────────────────────────────────────────────────── grants
+-- === Grants =============================================
 
 revoke all on function public.is_manager(uuid)                               from public, anon;
 revoke all on function public._require_manager(uuid, uuid)                   from public, anon, authenticated;

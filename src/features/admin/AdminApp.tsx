@@ -1,3 +1,12 @@
+/**
+ * Administration — sign-in gate, sidebar and the admin routes.
+ *
+ * Only active owners and managers get in; a waiter who signs in sees a "no access" screen. The
+ * database applies the same rule to every admin call (is_manager), so this gate is a courtesy,
+ * not the protection. The sidebar names the establishment's edition, and its tables entry follows
+ * it: tables for Stočić Café, tables and rooms for Stočić Hotel.
+ */
+
 import { useCallback, useEffect, useState, type CSSProperties } from 'react';
 import { Link, Navigate, NavLink, Route, Routes } from 'react-router-dom';
 import { ConciergeBell, LayoutDashboard, Lock, LogOut, QrCode, Settings, UsersRound, UtensilsCrossed } from 'lucide-react';
@@ -6,6 +15,7 @@ import { useI18n } from '../../i18n';
 import { Button, CenterState, IconButton, LangSwitch, Spinner } from '../../components/ui';
 import { StaffLogin } from '../../components/StaffLogin';
 import { ToastProvider } from '../../components/Toast';
+import { editionName, isHotel } from '../../lib/edition';
 import { initials } from './parts';
 import { Overview } from './Overview';
 import { MenuPage } from './MenuPage';
@@ -76,7 +86,9 @@ function AdminShell({ session, onSession, onSignOut }: { session: StaffSession; 
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate font-serif text-[17px] leading-tight font-semibold">{cafe.name}</p>
-            <p className="text-[13px] text-stone">{t('admin.title')}</p>
+            <p className="text-[13px] text-stone">
+              {t('admin.title')} · <span className="whitespace-nowrap">{editionName(cafe.edition)}</span>
+            </p>
           </div>
           <div className="lg:hidden">
             <LangSwitch />
@@ -96,7 +108,7 @@ function AdminShell({ session, onSession, onSignOut }: { session: StaffSession; 
               }
             >
               <Icon size={18} aria-hidden />
-              {t(`admin.nav.${key}`)}
+              {t(key === 'tables' && isHotel(cafe) ? 'admin.nav.tablesHotel' : `admin.nav.${key}`)}
             </NavLink>
           ))}
         </nav>

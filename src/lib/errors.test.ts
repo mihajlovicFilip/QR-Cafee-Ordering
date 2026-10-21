@@ -1,3 +1,5 @@
+/** Error tests — from a database or network failure to the message people read. */
+
 import { describe, expect, it } from 'vitest';
 import { ApiError } from '../api/types';
 import { toApiError } from '../api/supabase';

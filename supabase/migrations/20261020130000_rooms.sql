@@ -6,7 +6,7 @@
 --
 -- Run after 20261020120000_admin.sql.
 
--- ─────────────────────────────────────────────────────────────── schema changes
+-- === Schema changes =============================================
 
 alter table public.dining_tables
   add column if not exists kind text not null default 'table' check (kind in ('table', 'room'));
@@ -19,7 +19,7 @@ drop index if exists public.dining_tables_active_number_idx;
 create unique index if not exists dining_tables_active_kind_number_idx
   on public.dining_tables (cafe_id, kind, number) where active;
 
--- ─────────────────────────────────────────────────────────────── guest functions (same rules, plus the kind)
+-- === Guest functions (same rules, plus the kind) =============================================
 
 create or replace function public.guest_table(p_token text)
 returns jsonb
@@ -181,7 +181,7 @@ begin
 end;
 $$;
 
--- ─────────────────────────────────────────────────────────────── admin
+-- === Admin =============================================
 
 -- p_table: {"id"?, "kind", "number", "seats", "zone"}. The kind is fixed once the place exists.
 create or replace function public.admin_save_table(p_cafe uuid, p_table jsonb)

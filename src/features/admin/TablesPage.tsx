@@ -1,3 +1,11 @@
+/**
+ * Tables, rooms and QR codes.
+ *
+ * Stočić Café shows tables. Stočić Hotel adds a rooms tab with floors, search and bulk creation by
+ * number range. Every place has a QR card (PNG) and goes into a print-ready A4 PDF, four cards to a
+ * page; a new code makes the printed one useless at once.
+ */
+
 import { useMemo, useState } from 'react';
 import { BedDouble, Copy, Download, ExternalLink, FileDown, Pencil, Plus, RefreshCw, Search, Trash2 } from 'lucide-react';
 import { backend, TABLE_ZONES, type DiningTable, type PlaceKind, type StaffSession } from '../../api';
@@ -5,6 +13,7 @@ import { translateIn, useI18n } from '../../i18n';
 import { useLive, useNow, useStoredState } from '../../lib/hooks';
 import { describeError } from '../../lib/errors';
 import { floorFromNumber, floorLabel, MAX_FLOOR, placeKey, tableState, type TableState } from '../../lib/orderView';
+import { isHotel } from '../../lib/edition';
 import { cardPng, cardsPdf, downloadBlob, qrMatrix, qrPath, type QrCard } from '../../lib/qr';
 import { Button, Dialog, IconButton, Spinner } from '../../components/ui';
 import { useToast } from '../../components/Toast';
@@ -41,11 +50,14 @@ export function TablesPage({ session }: { session: StaffSession }) {
   const toast = useToast();
   const now = useNow(15_000);
   const cafe = session.cafe;
-  useAdminTitle(t('admin.nav.tables'), cafe.name);
+  const hotel = isHotel(cafe);
+  useAdminTitle(t(hotel ? 'admin.nav.tablesHotel' : 'admin.nav.tables'), cafe.name);
 
   const places = useLive(() => backend.cafeTables(cafe.id), () => () => {}, [cafe.id], 60_000);
   const orders = useLive(() => backend.cafeOrders(cafe.id), (cb) => backend.subscribeCafe(cafe.id, cb), [cafe.id]);
-  const [kind, setKind] = useStoredState<PlaceKind>('stolic.admin.places', 'table');
+  const [storedKind, setKind] = useStoredState<PlaceKind>('stolic.admin.places', 'table');
+  // Stočić Café has tables only, whatever was last chosen in a Stočić Hotel session.
+  const kind: PlaceKind = hotel ? storedKind : 'table';
   const [query, setQuery] = useState('');
   const [floorFilter, setFloorFilter] = useState('all');
   const [editing, setEditing] = useState<DiningTable | 'new' | null>(null);
@@ -120,8 +132,8 @@ export function TablesPage({ session }: { session: StaffSession }) {
   return (
     <div className="flex animate-rise flex-col gap-6">
       <PageHeader
-        title={t('admin.tables.title')}
-        subtitle={t('admin.tables.subtitle')}
+        title={t(hotel ? 'admin.tables.titleHotel' : 'admin.tables.title')}
+        subtitle={t(hotel ? 'admin.tables.subtitleHotel' : 'admin.tables.subtitle')}
         actions={
           <>
             <Button variant="ghost" size="sm" busy={pdfBusy} disabled={!list.length} onClick={printAll}>
@@ -137,17 +149,19 @@ export function TablesPage({ session }: { session: StaffSession }) {
       />
 
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex gap-2" role="group" aria-label={t('admin.nav.tables')}>
-          <button type="button" className="chip chip-sm" aria-pressed={!room} onClick={() => setKind('table')}>
-            {t('admin.tables.kindTables')}
-            <span className="tabular opacity-70">{tableCount}</span>
-          </button>
-          <button type="button" className="chip chip-sm" aria-pressed={room} onClick={() => setKind('room')}>
-            <BedDouble size={15} aria-hidden />
-            {t('admin.tables.kindRooms')}
-            <span className="tabular opacity-70">{roomCount}</span>
-          </button>
-        </div>
+        {hotel ? (
+          <div className="flex gap-2" role="group" aria-label={t('admin.nav.tablesHotel')}>
+            <button type="button" className="chip chip-sm" aria-pressed={!room} onClick={() => setKind('table')}>
+              {t('admin.tables.kindTables')}
+              <span className="tabular opacity-70">{tableCount}</span>
+            </button>
+            <button type="button" className="chip chip-sm" aria-pressed={room} onClick={() => setKind('room')}>
+              <BedDouble size={15} aria-hidden />
+              {t('admin.tables.kindRooms')}
+              <span className="tabular opacity-70">{roomCount}</span>
+            </button>
+          </div>
+        ) : null}
         <span className="text-sm text-stone">
           {room ? tp('admin.tables.roomsSummary', ofKind.length) : `${tp('admin.tables.summary', ofKind.length)} · ${tp('admin.tables.seatsTotal', seats)}`}
         </span>

@@ -1,3 +1,8 @@
+/**
+ * Vitest configuration — two projects: `unit` (frontend and demo backend in a simulated browser)
+ * and `db` (the SQL on a real PostgreSQL, see tests/db/globalSetup.ts).
+ */
+
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({

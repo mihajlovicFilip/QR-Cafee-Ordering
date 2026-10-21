@@ -21,8 +21,9 @@ declare
   g_egg jsonb := '{"id":"egg","name":{"sr":"Jaje","en":"Egg"},"choices":[{"id":"poached","name":{"sr":"Poširano","en":"Poached"},"price":0},{"id":"scrambled","name":{"sr":"Kajgana","en":"Scrambled"},"price":0}]}';
   g_ice jsonb := '{"id":"ice","name":{"sr":"Led","en":"Ice"},"choices":[{"id":"yes","name":{"sr":"Sa ledom","en":"With ice"},"price":0,"quiet":true},{"id":"no","name":{"sr":"Bez leda","en":"No ice"},"price":0}]}';
 begin
-  insert into public.cafes (id, slug, name, accent, default_lang, phone, email, address, opening_hours)
-  values (cafe, 'lipa', 'Kafeterija Lipa', '#A45A2E', 'sr', '+381 11 405 2210', 'zdravo@kafeterijalipa.rs',
+  -- Stočić Hotel: the demo has rooms. For a café-only demo, set edition to 'cafe' (the rooms then stay inert).
+  insert into public.cafes (id, slug, name, edition, accent, default_lang, phone, email, address, opening_hours)
+  values (cafe, 'lipa', 'Kafeterija Lipa', 'hotel', '#A45A2E', 'sr', '+381 11 405 2210', 'zdravo@kafeterijalipa.rs',
           'Cara Dušana 42, Beograd', '{"weekdays":"07:00–23:00","saturday":"08:00–24:00","sunday":"09:00–22:00"}');
 
   insert into public.dining_tables (cafe_id, number, seats, zone, qr_token)

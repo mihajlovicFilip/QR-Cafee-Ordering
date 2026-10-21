@@ -1,23 +1,36 @@
-// Starts a throwaway PostgreSQL 17 server for the database tests, applies the Supabase stand-ins,
-// every migration in order and the seed, and hands the connection URL to the tests.
-//
-// To use an existing server instead, set TEST_DATABASE_URL to an EMPTY database you can throw away:
-// the setup creates roles and schemas in it.
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+/**
+ * Database test setup — a throwaway PostgreSQL 17 with the real schema.
+ *
+ * Starts a server for the database tests, applies the Supabase stand-ins, every migration in
+ * order and the seed, and hands the connection URL to the tests. To use an existing server
+ * instead, set TEST_DATABASE_URL to an EMPTY database you can throw away: the setup creates roles
+ * and schemas in it.
+ */
+
+import { mkdtempSync, rmSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import pg from 'pg';
 import EmbeddedPostgres from 'embedded-postgres';
 import type { TestProject } from 'vitest/node';
-
-const ROOT = join(import.meta.dirname, '..', '..');
+import { applyMigrations, applySeed, applyStubs } from './schema';
 
 declare module 'vitest' {
   export interface ProvidedContext {
     dbUrl: string;
   }
 }
+
+// embedded-postgres stops its servers on 'beforeExit' and then calls process.exit(0), which turned
+// every failed run into exit code 0 (npm run check and CI stayed green). Keep the code Vitest set.
+let vitestExitCode = 0;
+process.prependListener('beforeExit', () => {
+  vitestExitCode ||= Number(process.exitCode ?? 0);
+});
+process.on('exit', () => {
+  if (vitestExitCode) process.exitCode = vitestExitCode;
+});
 
 function freePort(): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -35,16 +48,9 @@ export async function applySchema(url: string) {
   const client = new pg.Client({ connectionString: url });
   await client.connect();
   try {
-    await client.query(readFileSync(join(ROOT, 'tests/db/supabase-stubs.sql'), 'utf8'));
-    const dir = join(ROOT, 'supabase/migrations');
-    for (const file of readdirSync(dir).filter((f) => f.endsWith('.sql')).sort()) {
-      try {
-        await client.query(readFileSync(join(dir, file), 'utf8'));
-      } catch (e) {
-        throw new Error(`Migration ${file} failed: ${(e as Error).message}`, { cause: e });
-      }
-    }
-    await client.query(readFileSync(join(ROOT, 'supabase/seed.sql'), 'utf8'));
+    await applyStubs(client);
+    await applyMigrations(client);
+    await applySeed(client);
   } finally {
     await client.end();
   }

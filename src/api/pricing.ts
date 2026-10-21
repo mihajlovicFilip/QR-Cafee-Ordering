@@ -1,3 +1,11 @@
+/**
+ * Price estimates in the browser.
+ *
+ * For display in the menu and the cart only: place_order recomputes every price from the products
+ * table and ignores what the phone sends. The rule for choices (a missing or unknown one falls
+ * back to the group's first choice) mirrors the SQL, so the estimate matches the bill.
+ */
+
 import type { OptionChoice, Product } from './types';
 
 export function defaultChoices(product: Product): Record<string, string> {

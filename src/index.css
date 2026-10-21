@@ -1,5 +1,17 @@
-@import "tailwindcss";
+/*=============================================================================
+   Stočić — design tokens, base styles and the shared component classes.
 
+   Warm ivory, espresso and a copper accent; Fraunces for headings, Inter for
+   text. Screens set --ac to the café's own accent colour, so buttons, focus
+   rings and highlights follow each establishment's brand.
+===============================================================================*/
+/* Classes are looked for in src only: words in README, SQL or tests must not become CSS. */
+@import "tailwindcss" source(".");
+
+/*=============================================================================
+tokens
+===============================================================================*/
+/* Tailwind reads these: bg-ivory, text-stone, animate-rise and so on. */
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Fraunces", ui-serif, Georgia, serif;
@@ -39,10 +51,17 @@
   @keyframes glow { 0% { box-shadow: 0 0 0 0 rgba(164, 90, 46, 0.45); } 100% { box-shadow: 0 0 0 16px rgba(164, 90, 46, 0); } }
 }
 
+/*=============================================================================
+accent
+===============================================================================*/
+/* The default accent until a screen sets the café's colour. */
 :root {
   --ac: #a45a2e;
 }
 
+/*=============================================================================
+base
+===============================================================================*/
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;
@@ -60,6 +79,10 @@
   }
 }
 
+/*=============================================================================
+components
+===============================================================================*/
+/* Classes used too often to spell out as utilities every time. */
 @layer components {
   .card {
     @apply bg-paper border border-line rounded-[18px];

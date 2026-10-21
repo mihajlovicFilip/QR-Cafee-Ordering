@@ -1,3 +1,5 @@
+/** Finished orders, and the tables view (tables and, for Stočić Hotel, rooms). */
+
 import { BedDouble } from 'lucide-react';
 import type { DiningTable, Order, PlaceKind } from '../../api/types';
 import { useI18n } from '../../i18n';
@@ -44,11 +46,11 @@ const TILE: Record<TableState, string> = {
 };
 const LABEL: Record<TableState, string> = { free: 'waiter.tableFree', occupied: 'waiter.tableOccupied', new: 'waiter.tableNew', preparing: 'waiter.tablePreparing' };
 
-export function TablesView({ tables, orders, now }: { tables: DiningTable[]; orders: Order[]; now: number }) {
+export function TablesView({ tables, orders, now, hotel }: { tables: DiningTable[]; orders: Order[]; now: number; hotel: boolean }) {
   const { t } = useI18n();
   const [kind, setKind] = useStoredState<PlaceKind>('stolic.waiter.places', 'table');
   const [onlyActive, setOnlyActive] = useStoredState('stolic.waiter.roomsActive', true);
-  const hasRooms = tables.some((tb) => tb.kind === 'room');
+  const hasRooms = hotel && tables.some((tb) => tb.kind === 'room');
   const shown: PlaceKind = hasRooms ? kind : 'table';
   const rows = tables
     .filter((tb) => (tb.kind ?? 'table') === shown)

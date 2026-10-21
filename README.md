@@ -1,113 +1,250 @@
-# Stočić — QR poručivanje za kafiće
+# Stočić — QR ordering for cafés and hotels
 
-Gost skenira QR kod na stolu i poruči sa telefona, bez registracije. Konobar porudžbinu prihvati ili odbije i izabere vreme pripreme, a gost uživo vidi odbrojavanje i status. Interfejs je na srpskom (latinica) i engleskom.
+A guest scans the QR code on a table (or in a hotel room) and orders from their phone, with no
+sign-up. A waiter accepts or rejects the order and picks a preparation time; the guest follows the
+countdown and the status live. The interface is in Serbian (Latin script) and English.
 
-**Faza 1:** ceo tok porudžbine — meni za gosta, korpa, slanje, praćenje uživo, konobarski panel (nove / aktivne / završene porudžbine, stolovi, pozivi konobara).
-**Faza 2:** administratorski panel na `/admin` (samo vlasnik i menadžeri): pregled za danas, poslednjih 7 ili 30 dana ili jedan izabrani dan iz poslednjih 30 (porudžbine, promet, vreme pripreme, grafikon po satu ili po danu, najprodavanije, spisak porudžbina tog dana), meni (kategorije, proizvodi na dva jezika, cene, dostupnost, opcije, fotografije), stolovi i QR kodovi (PNG po stolu, PDF za štampu sa 4 kartice po A4 strani, novi kod), osoblje (uloge, pristup, dodavanje) i podešavanja lokala.
-**Sobe (room service):** pored stolova postoje i sobe sa svojim QR kodovima. Gost u sobi poručuje isto kao za stolom (bez dugmeta „Pozovi konobara“), konobar vidi oznaku „Sobna usluga“, a u adminu se sobe dodaju opsegom brojeva (npr. 101–130) sa spratom (0 = prizemlje; predlaže se iz broja, 401 → 4. sprat, ali može da se promeni). Demo ima 90 soba: 101–130, 201–230, 301–330.
+## Editions
 
-## Pokretanje
+One codebase, two products. Every establishment has exactly one edition, stored in the database
+(`cafes.edition`):
+
+| | Stočić Café | Stočić Hotel |
+|---|---|---|
+| For | cafés, bars, restaurants | hotels and other accommodation |
+| QR ordering from tables, menu, cart, live tracking | ✓ | ✓ |
+| Waiter dashboard, preparation times, waiter calls | ✓ | ✓ |
+| Administration: overview, menu, tables and QR codes, staff, settings | ✓ | ✓ |
+| QR ordering from rooms (room service), room and floor management | — | ✓ |
+
+The edition decides only whether rooms exist; every other feature is shared. The database
+enforces it (`20261021120000_editions.sql`): for a Stočić Café a room QR code behaves like an
+inactive code, a room-service order is refused, and creating or managing rooms fails with
+`hotel_only` — even through direct API calls. The interface follows the same rule: a café sees
+tables only and no hotel wording; a hotel gets the tables / rooms switch, floors and the
+"room service" labels.
+
+The edition is set by the operator in the database, not in the admin panel:
+
+```sql
+update public.cafes set edition = 'hotel' where id = '<café id>';  -- or 'cafe'
+```
+
+Switching a hotel back to café keeps its rooms in the database, inert; switching to hotel again
+brings them back, QR codes included.
+
+## Features
+
+- **Guests:** menu by QR code, search, product options, cart, order notes, live tracking with a
+  countdown, earlier orders, "Call waiter" (tables only).
+- **Waiters:** new / active / finished orders, accept with a preparation time or reject with a
+  reason, extend, ready, served; the tables view (and rooms for Stočić Hotel); waiter calls; sound.
+- **Administration** at `/admin`, for owners and managers only:
+  - overview for today, the last 7 or 30 days, or one chosen day of the last 30 (orders, sales,
+    preparation time, a chart by hour or by day, best sellers, that day's orders);
+  - menu (categories, products in both languages, prices, availability, options, photos);
+  - tables and QR codes (a PNG card per place, a print-ready PDF with four cards per A4 page, new
+    codes);
+  - staff (roles, access, invitations) and the establishment's settings.
+- **Rooms (Stočić Hotel):** rooms have their own QR codes. A guest in a room orders exactly as at
+  a table (without "Call waiter"), and the waiter sees a "Room service" label. Rooms are added in
+  the admin panel by number range (e.g. 101–130) with a floor (0 = ground floor; suggested from
+  the number, 401 → 4th floor, but editable).
+
+## Running
 
 ```bash
 npm install
 npm run dev
 ```
 
-Otvorite http://localhost:5173.
+Open http://localhost:5173.
 
-Bez podešavanja aplikacija radi u **demo režimu**: podaci se čuvaju u pregledaču, a tabovi istog pregledača razmenjuju porudžbine uživo. Otvorite gosta (`/t/demo-sto-7`, ili sobu `/t/demo-soba-214`) i konobara (`/waiter`) u dva taba jedan pored drugog. Administracija je na `/admin` (u demou izaberite vlasnicu Jelenu ili menadžera Nikolu); izmene menija gost vidi čim ponovo učita meni.
+Without any configuration the app runs in **demo mode**: data stays in the browser, and tabs of
+the same browser exchange orders live. Open a guest (`/t/demo-sto-7`, or the room
+`/t/demo-soba-214`) and the waiter (`/waiter`) in two tabs side by side. Administration is at
+`/admin` (in the demo, pick the owner Jelena or the manager Nikola); guests see menu changes as
+soon as they reload the menu.
 
-> Ako `npm install` javi `EACCES` za `~/.npm`, keš sadrži fajlove u vlasništvu root-a. Popravka: `sudo chown -R $(id -u):$(id -g) ~/.npm`, ili jednokratno: `npm install --cache /tmp/npm-cache`.
+The demo starts as Stočić Hotel, with 12 tables and 90 rooms (101–130, 201–230, 301–330). The
+home page switches it to Stočić Café and back.
 
-## Povezivanje sa Supabase
+> If `npm install` fails with `EACCES` on `~/.npm`, the cache contains files owned by root. Fix:
+> `sudo chown -R $(id -u):$(id -g) ~/.npm`, or once: `npm install --cache /tmp/npm-cache`.
 
-1. Napravite projekat na [supabase.com](https://supabase.com) (besplatan plan je dovoljan).
-2. **SQL Editor** → nalepite i pokrenite, ovim redom, sve fajlove iz `supabase/migrations/`:
-   `20261020000000_init.sql` (šema, porudžbine), `20261020120000_admin.sql` (administracija, fotografije), `20261020130000_rooms.sql` (sobe), `20261020140000_room_floor.sql` (sprat sobe), `20261020150000_hardening.sql` (zaštita od istovremenih zahteva i suvišnih privilegija), `20261021090000_order_stats.sql` (statistika za pregled).
-3. **SQL Editor** → pokrenite `supabase/seed.sql` (demo kafić *Kafeterija Lipa*, meni na dva jezika, 12 stolova i 90 soba). Seed mora posle svih migracija.
-4. **Authentication → Sign In / Providers** → uključite **Allow anonymous sign-ins** (gosti se ne registruju, ali dobijaju anonimnu sesiju da bi videli samo svoje porudžbine).
-5. **Authentication → Users → Add user** za svakog konobara (uz *Auto Confirm User*), pa ga povežite sa kafićem preko `supabase/link_staff.sql`.
-6. Kopirajte `.env.example` u `.env` i upišite **Project URL** i **anon** (ili **publishable**) ključ iz *Project Settings → API*. Nikada ne upisujte `service_role` ključ.
-7. Ponovo pokrenite `npm run dev`. Gost: `http://localhost:5173/t/demo-sto-7`, konobar: `http://localhost:5173/waiter`.
+## Connecting Supabase
 
-### Administracija (faza 2)
+1. Create a project at [supabase.com](https://supabase.com) (the free plan is enough).
+2. **SQL Editor** → paste and run every file in `supabase/migrations/`, in this order:
 
-8. Migracija `20261020120000_admin.sql` iz koraka 2 dodaje funkcije `admin_*` (sve proveravaju da je pozivalac aktivan vlasnik ili menadžer tog kafića preko `is_manager`), Storage bucket `product-images` za fotografije proizvoda i pravila da menadžeri otpremaju samo u fasciklu svog kafića. Ako ste bazu podesili ranije, pokrenite redom one migracije koje još niste (sve su bez gubitka podataka; poslednja je `20261021090000_order_stats.sql`).
-9. Vlasnika povežite preko `supabase/link_staff.sql` sa ulogom `'owner'` i prijavite se na `/admin` istim nalogom kao na `/waiter`.
-10. **Dodavanje osoblja iz panela** traži `service_role` ključ, pa radi kroz Edge funkciju (ključ nikad ne ide u pregledač):
+   | Migration | Adds |
+   |---|---|
+   | `20261020000000_init.sql` | schema, RLS, guest and waiter functions, realtime |
+   | `20261020120000_admin.sql` | administration functions, product photo storage |
+   | `20261020130000_rooms.sql` | rooms next to tables |
+   | `20261020140000_room_floor.sql` | a floor for every room |
+   | `20261020150000_hardening.sql` | protection against simultaneous requests and surplus privileges |
+   | `20261021090000_order_stats.sql` | statistics for the overview |
+   | `20261021120000_editions.sql` | Stočić Café / Stočić Hotel |
+
+3. **SQL Editor** → run `supabase/seed.sql` (the demo establishment *Kafeterija Lipa*: a menu in
+   both languages, 12 tables and 90 rooms, Stočić Hotel). The seed must run after all migrations.
+4. **Authentication → Sign In / Providers** → turn on **Allow anonymous sign-ins** (guests do not
+   register, but get an anonymous session so they see only their own orders).
+5. **Authentication → Users → Add user** for every waiter (with *Auto Confirm User*), then link
+   them to the establishment with `supabase/link_staff.sql`.
+6. Copy `.env.example` to `.env` and enter the **Project URL** and the **anon** (or
+   **publishable**) key from *Project Settings → API*. Never put the `service_role` key there.
+7. Restart `npm run dev`. Guest: `http://localhost:5173/t/demo-sto-7`, waiter:
+   `http://localhost:5173/waiter`.
+
+### Administration
+
+8. The migration `20261020120000_admin.sql` from step 2 adds the `admin_*` functions (each checks
+   through `is_manager` that the caller is an active owner or manager of that establishment), the
+   Storage bucket `product-images` for product photos, and rules that let managers upload only
+   into their own establishment's folder.
+9. Link the owner with `supabase/link_staff.sql` and the role `'owner'`, then sign in at `/admin`
+   with the same account as at `/waiter`.
+10. **Adding staff from the admin panel** needs the `service_role` key, so it runs in an Edge
+    Function (the key never reaches the browser):
+
     ```bash
     supabase functions deploy invite-staff
     ```
-    Funkcija pravi nalog sa privremenom lozinkom (ili povezuje postojeći nalog sa tom e-poštom). Bez nje dugme „Dodaj člana“ javlja da funkcija nije podešena — tada osoblje dodajte ručno kao u koraku 5.
 
-Pre puštanja pravim gostima zamenite čitljive demo QR tokene nasumičnim:
+    The function creates a login with a temporary password (or links an existing account with
+    that email). Without it, "Add member" reports that the function is not set up — add staff by
+    hand as in step 5 instead.
+
+### Upgrading an existing database
+
+Run, in order, the migrations the database does not have yet. None of them deletes data.
+`20261021120000_editions.sql` makes every establishment that has rooms (or past room-service
+orders) Stočić Hotel and every other one Stočić Café; QR codes, orders and guest sessions are
+untouched, and the app keeps showing rooms until the migration has run. Check the result before
+going live:
+
+```sql
+select name, edition from public.cafes;
+```
+
+### Before going live
+
+Replace the readable demo QR tokens with random ones:
 
 ```sql
 update public.dining_tables set qr_token = replace(gen_random_uuid()::text, '-', '');
 ```
 
-Za produkciju preporučujemo i CAPTCHA za anonimnu prijavu (*Authentication → Attack Protection*) i ograničenje broja anonimnih prijava po IP adresi (*Authentication → Rate Limits*). Ograničenje „jedna porudžbina na 5 s“ važi po gostu; bez ova dva podešavanja neko ko pravi nove anonimne naloge može da šalje lažne porudžbine.
+Also turn on CAPTCHA for anonymous sign-ins (*Authentication → Attack Protection*) and a limit on
+anonymous sign-ins per IP address (*Authentication → Rate Limits*). The "one order per 5 seconds"
+limit applies per guest; without these two settings, someone who keeps creating anonymous
+accounts can send fake orders.
 
-## Objava na GitHub Pages
+## Publishing on GitHub Pages
 
-Workflow `.github/workflows/deploy-pages.yml` na svaki push na `main` napravi build i objavi ga na `https://<korisnik>.github.io/<repozitorijum>/`.
+The workflow `.github/workflows/deploy-pages.yml` builds the app on every push to `main` and
+publishes it at `https://<user>.github.io/<repository>/`.
 
-1. Jednom: na GitHub-u **Settings → Pages → Build and deployment → Source** izaberite **GitHub Actions**.
-2. Svaki `git push` na `main` posle toga sam objavljuje novu verziju (tab **Actions** pokazuje napredak).
+1. Once: on GitHub, **Settings → Pages → Build and deployment → Source** → **GitHub Actions**.
+2. From then on every `git push` to `main` publishes a new version (the **Actions** tab shows the
+   progress).
 
-Bez Supabase ključeva objavljena verzija radi u demo režimu, pa svaki uređaj ima svoje podatke. Da bi porudžbine sa telefona stizale konobaru na drugom uređaju, u **Settings → Secrets and variables → Actions** dodajte `VITE_SUPABASE_URL` i `VITE_SUPABASE_ANON_KEY` i prosledite ih koraku *Build* u workflow-u.
+Without Supabase keys the published site runs in demo mode, so every device has its own data. For
+orders from a phone to reach a waiter on another device, add `VITE_SUPABASE_URL` and
+`VITE_SUPABASE_ANON_KEY` under **Settings → Secrets and variables → Actions** and pass them to the
+*Build* step of the workflow.
 
-## Kako je zaštićeno
+## How it is protected
 
-- Svaka izmena ide kroz funkcije u bazi (`place_order`, `accept_order`, `reject_order`, `extend_order`, `mark_order_ready`, `mark_order_served`, `call_waiter`, `resolve_call`, i za administraciju `admin_*`). Direktan upis u tabele je zabranjen.
-- Administracija: samo aktivni vlasnik ili menadžer kafića; samo vlasnik dodeljuje ili menja ulogu vlasnika; niko ne menja svoju ulogu i pristup. Uklonjen sto sa istorijom porudžbina se skriva (QR kod prestaje da radi), a bez istorije se briše.
-- **Cene računa server** iz tabele proizvoda — iznos koji pošalje telefon se ignoriše.
-- **Prihvatanje je atomsko:** ako dva konobara pritisnu „Prihvati“ istovremeno, uspeva samo prvi; drugi dobija poruku da je porudžbina već preuzeta.
-- RLS: gost vidi samo svoje porudžbine; osoblje vidi samo podatke svog kafića (spremno za više kafića na jednoj bazi).
-- Ograničenja: najviše 40 stavki i 50 komada po stavci, jedna porudžbina na 5 sekundi po gostu, ponovljeni pozivi konobara u roku od 20 s se ignorišu. Sva tri pravila važe i kad stigne više zahteva u istom trenutku (zaključavanje u bazi po gostu, odnosno po stolu).
-- Pregledač (uloge `anon` i `authenticated`) nema nikakvo pravo upisa, brisanja ni pražnjenja tabela; `anon` sme da pozove samo `guest_table` i `server_now`.
+- Every change goes through functions in the database (`place_order`, `accept_order`,
+  `reject_order`, `extend_order`, `mark_order_ready`, `mark_order_served`, `call_waiter`,
+  `resolve_call`, and `admin_*` for administration). Writing to tables directly is not allowed.
+- Administration: active owners and managers of the establishment only; only an owner assigns or
+  changes the owner role; nobody changes their own role or access. A removed table or room with
+  order history is hidden (its QR code stops working); one without history is deleted.
+- **The server computes prices** from the products table; whatever amount the phone sends is
+  ignored.
+- **Accepting is atomic:** if two waiters press "Accept" at the same moment, only the first
+  succeeds; the second is told the order was already taken.
+- RLS: a guest sees only their own orders; staff see only their own establishment's data (ready
+  for many establishments on one database).
+- Limits: at most 40 lines and 50 pieces per line, one order per 5 seconds per guest, repeated
+  waiter calls within 20 s are ignored. All three hold when several requests arrive at the same
+  moment (a database lock per guest, or per table).
+- The browser (roles `anon` and `authenticated`) has no right to insert, update, delete or
+  truncate any table; `anon` may call only `guest_table` and `server_now`.
+- Editions: every room operation requires Stočić Hotel (`hotel_only`). The check runs after the
+  manager check, so anyone who is not a manager still gets the same `forbidden` as before.
 
-## Testovi
+## Tests
 
 ```bash
 npm run check
 ```
 
-pokreće sve redom: proveru tipova (aplikacija, testovi, Edge funkcija), ESLint, testove i produkcioni build. Pojedinačno:
+runs everything in order: type checks (app, tests, Edge Function), ESLint, all tests and the
+production build. One by one:
 
-| Komanda | Šta proverava |
+| Command | What it checks |
 |---|---|
-| `npm run typecheck` | TypeScript za aplikaciju, testove i `supabase/functions` |
-| `npm run lint` | ESLint (TypeScript i pravila React hook-ova) |
-| `npm test` | Unit testovi (Vitest, simulirani pregledač): demo backend, cene, statusi, prevodi, ekrani na oba jezika, greške mreže |
-| `npm run test:db` | Testovi baze na **pravom PostgreSQL 17** sa svim migracijama i seed-om: cene, validacija, granica od 5 s pod istovremenim zahtevima, prihvatanje porudžbine kad dva konobara kliknu istovremeno, prelazi statusa, RLS između kafića, privilegije, Storage pravila, stolovi i sobe |
+| `npm run typecheck` | TypeScript for the app, the tests and `supabase/functions` |
+| `npm run lint` | ESLint (TypeScript and the React hook rules) |
+| `npm test` | Unit tests (Vitest, simulated browser): demo backend, prices, statuses, translations, screens in both languages and both editions, network failures |
+| `npm run test:db` | Database tests on a **real PostgreSQL 17** with every migration and the seed: prices, validation, the 5-second limit under simultaneous requests, two waiters accepting at once, status transitions, RLS between establishments, privileges, Storage rules, tables and rooms, editions (including the editions migration over existing data) |
 
-`npm run test:db` sam pokreće privremeni PostgreSQL (paket `embedded-postgres`, bez Docker-a) i briše ga na kraju. Supabase delovi koje baza očekuje (`auth.uid()`, uloge `anon`/`authenticated`/`service_role`, `storage`) zamenjeni su minimalnim verzijama iz `tests/db/supabase-stubs.sql`. Ovi testovi zato dokazuju ono što sprovodi sama baza (funkcije, RLS, privilegije, zaključavanje), a **ne** ponašanje Supabase servisa (PostgREST, Auth, Realtime, Storage API, Edge funkcija). Za to je potreban pravi Supabase projekat.
+`npm run test:db` starts a temporary PostgreSQL (the `embedded-postgres` package, no Docker) and
+removes it at the end. The Supabase parts the database expects (`auth.uid()`, the roles
+`anon` / `authenticated` / `service_role`, `storage`) are replaced by minimal stand-ins from
+`tests/db/supabase-stubs.sql`. These tests therefore prove what the database itself enforces
+(functions, RLS, privileges, locking) — **not** the behaviour of the Supabase services
+(PostgREST, Auth, Realtime, the Storage API, the Edge Function). That needs a real Supabase
+project.
 
-GitHub Actions (`.github/workflows/ci.yml`) pokreće sve ovo na svaki push i pull request, a objava na GitHub Pages ne prolazi ako unit testovi padnu.
+GitHub Actions (`.github/workflows/ci.yml`) runs all of this on every push and pull request, and
+the GitHub Pages deployment stops if the unit tests fail.
 
-## Struktura
+## Structure
 
 ```
 src/
-  api/           types.ts (ugovor), supabase.ts, demo.ts, seedData.ts, pricing.ts
-  i18n/          sr.json, en.json, index.tsx (prevodi, množina, formati)
+  api/           types.ts (the contract), supabase.ts, demo.ts, seedData.ts, pricing.ts, stats.ts
+  i18n/          sr.json, en.json, index.tsx (translations, plurals, formats)
   features/
-    guest/       meni, detalj proizvoda, korpa, praćenje porudžbine
-    waiter/      prijava, panel, kartice porudžbina, stolovi, odbijanje
-    admin/       pregled, meni, stolovi i QR, osoblje, podešavanja
-    home/        početna strana
-  components/    dugmad, bedževi, dijalog, prekidač, obaveštenja, prijava osoblja
-  lib/           osvežavanje uživo, sat, statusi, zvuk, QR kartice i PDF, smanjivanje slika
+    guest/       menu, product details, cart, order tracking
+    waiter/      sign-in, dashboard, order cards, tables, rejecting
+    admin/       overview, menu, tables and rooms with QR codes, staff, settings
+    home/        home page (and the demo's edition switch)
+  components/    buttons, badges, dialog, switch, toasts, staff sign-in
+  lib/           live data, clock, statuses, editions, sound, QR cards and PDF, image resizing
 supabase/
-  migrations/    šema, RLS, funkcije, realtime; _admin.sql za administraciju; _rooms.sql i _room_floor.sql za sobe; _hardening.sql; _order_stats.sql
-  functions/     invite-staff (dodavanje osoblja, koristi service_role)
-  seed.sql       demo kafić (12 stolova, 90 soba)
-  link_staff.sql šablon za povezivanje konobara
-tests/db/        testovi baze (pravi PostgreSQL) i zamene za Supabase delove
-.github/         CI provere i objava na GitHub Pages
+  migrations/    schema, RLS, functions, realtime — see the table above
+  functions/     invite-staff (adding staff, uses service_role)
+  seed.sql       demo establishment (12 tables, 90 rooms, Stočić Hotel)
+  link_staff.sql template for linking a staff login to an establishment
+tests/db/        database tests (real PostgreSQL), schema loading and the Supabase stand-ins
+.github/         CI checks and the GitHub Pages deployment
 ```
 
-## Jezici
+## Code conventions
 
-Sav tekst interfejsa je u `src/i18n/sr.json` i `src/i18n/en.json` (isti ključevi). Novi jezik: dodajte `<kod>.json` i registrujte ga u `src/i18n/index.tsx`. Nazivi i opisi proizvoda su u bazi kao `{"sr": "...", "en": "..."}`; ako prevod nedostaje, prikazuje se srpski. Izbor jezika se pamti u pregledaču; dok gost ne izabere, važi podrazumevani jezik kafića. Cene su uvek u RSD.
+- **The interface is in Serbian and English; everything in the code — comments, documentation,
+  names — is in English.** Product names (Stočić Café, Stočić Hotel) are never translated.
+- Every source file starts with a header: `Name — what it is.`, then why it exists or the
+  decisions behind it. Sections inside a file are marked `// === Name ===…` (`-- === Name ===…`
+  in SQL); CSS uses `/*===…===*/` blocks. Comments explain why, not what.
+- `src/api/types.ts` is the contract. A new backend method goes into it, into `supabase.ts` and
+  into `demo.ts`; the demo mirrors the SQL rules, and the tests check both.
+- Every write goes through a SECURITY DEFINER function, added in a new migration file. RLS and
+  the grants are never loosened to make something work.
+- Tailwind looks for classes in `src` only, so words in this README, the SQL or the tests never
+  turn into CSS.
+
+## Languages
+
+All interface text is in `src/i18n/sr.json` and `src/i18n/en.json` (the same keys). A new
+language: add `<code>.json` and register it in `src/i18n/index.tsx`. Product names and
+descriptions are stored in the database as `{"sr": "...", "en": "..."}`; when a translation is
+missing, Serbian is shown. The chosen language is remembered in the browser; until a guest picks
+one, the establishment's default language applies. Prices are always in RSD.

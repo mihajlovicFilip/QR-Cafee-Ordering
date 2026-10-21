@@ -1,3 +1,11 @@
+/**
+ * Staff — roles, access, and adding people.
+ *
+ * Creating a login needs the service_role key, which never reaches the browser: on a real database
+ * an invitation goes through the invite-staff Edge Function. Owners alone manage owners, and
+ * nobody changes their own role (the database enforces both).
+ */
+
 import { useState } from 'react';
 import { Info, UserPlus } from 'lucide-react';
 import { backend, STAFF_ROLES, type StaffMember, type StaffRole, type StaffSession } from '../../api';

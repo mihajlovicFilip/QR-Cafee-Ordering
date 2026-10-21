@@ -1,3 +1,5 @@
+/** Product details — options, quantity and a note before the product goes into the cart. */
+
 import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import type { CategoryIcon, Product } from '../../api/types';

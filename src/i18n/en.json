@@ -194,7 +194,12 @@
     "notFound": "This page doesn’t exist",
     "goHome": "Go home",
     "adminCard": "Open the admin panel",
-    "adminCardHint": "Menu, tables, rooms & QR codes, staff, settings"
+    "adminCardHint": "Menu, tables & QR codes, staff, settings",
+    "adminCardHintHotel": "Menu, tables, rooms & QR codes, staff, settings",
+    "demoEdition": "Demo edition",
+    "editionCafeHint": "Café, bar or restaurant: ordering from tables.",
+    "editionHotelHint": "Hotel: tables plus room service from the rooms.",
+    "editionSwitched": "The demo is now {edition}"
   },
   "admin": {
     "title": "Admin",
@@ -212,7 +217,7 @@
     "nav": {
       "overview": "Overview",
       "menu": "Menu",
-      "tables": "Tables & rooms",
+      "tables": "Tables & QR", "tablesHotel": "Tables & rooms",
       "staff": "Staff",
       "settings": "Settings"
     },
@@ -351,8 +356,10 @@
       "productDeleted": "“{name}” was removed from the menu"
     },
     "tables": {
-      "title": "Tables, rooms & QR codes",
-      "subtitle": "Every table and every room has its own QR code. Guests scan it and get the menu straight away — no app, no sign-up.",
+      "title": "Tables & QR codes",
+      "titleHotel": "Tables, rooms & QR codes",
+      "subtitle": "Every table has its own QR code. Guests scan it and get the menu for that table straight away — no app, no sign-up.",
+      "subtitleHotel": "Every table and every room has its own QR code. Guests scan it and get the menu straight away — no app, no sign-up.",
       "summary": [
         "{n} table",
         "{n} tables"
@@ -528,6 +535,7 @@
     "storage_full": "The browser’s storage is full. Remove a photo or reset the demo data.",
     "invalid_range": "The range must be within 1–9999, at most 300 rooms at a time.",
     "invalid_floor": "The floor must be a whole number from 0 to 200 (0 = ground floor).",
-    "demo_mode": "In demo mode, sign in by picking a person from the list."
+    "demo_mode": "In demo mode, sign in by picking a person from the list.",
+    "hotel_only": "Rooms are part of the Stočić Hotel edition."
   }
 }

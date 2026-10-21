@@ -1,3 +1,10 @@
+/**
+ * Order statistics for the demo backend — the browser twin of public.admin_order_stats.
+ *
+ * The SQL function totals orders in the database (a busy month is more than the API returns in
+ * one request); the demo has every order at hand and computes the same figures here.
+ */
+
 import type { Order, OrderStats } from './types';
 
 const pad = (n: number) => String(n).padStart(2, '0');

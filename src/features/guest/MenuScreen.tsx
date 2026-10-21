@@ -1,3 +1,7 @@
+/**
+ * The menu — search, categories, and the bottom bar with the cart, the active order and the call button.
+ */
+
 import { useMemo, useState } from 'react';
 import { ChevronRight, ConciergeBell, Plus, Search, X } from 'lucide-react';
 import type { Order, TableMenu } from '../../api/types';

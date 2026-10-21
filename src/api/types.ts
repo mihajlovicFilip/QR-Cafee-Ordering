@@ -1,5 +1,20 @@
+/**
+ * The contract — domain types and the Backend interface.
+ *
+ * Everything the screens know about data is declared here. supabase.ts and demo.ts each implement
+ * Backend in full: a new method goes into this file and into both of them. Timestamps are epoch
+ * milliseconds; prices are whole dinars (RSD).
+ */
+
 /** Text in several languages: {"sr": "...", "en": "..."}. Adding a language = adding a key. */
 export type Localized = Record<string, string>;
+
+/**
+ * The product edition of an establishment. Both share all code; the edition only decides
+ * whether rooms exist: Stočić Café has tables, Stočić Hotel has tables and rooms (room service).
+ * The database enforces it (20261021120000_editions.sql); the interface follows it.
+ */
+export type Edition = 'cafe' | 'hotel';
 
 /** Where the guest sits: a table in the venue, or a hotel room (room service). */
 export type PlaceKind = 'table' | 'room';
@@ -15,6 +30,7 @@ export interface Cafe {
   defaultLang: string;
   allowRepeat: boolean;
   callButton: boolean;
+  edition: Edition;
 }
 
 export interface TableRef {
@@ -132,7 +148,7 @@ export interface DemoStaff {
   role: string;
 }
 
-// ───────────────────────────────────────────── Admin
+// === Admin =============================================
 
 export type StaffRole = 'owner' | 'manager' | 'waiter' | 'barista';
 export const STAFF_ROLES: StaffRole[] = ['owner', 'manager', 'waiter', 'barista'];
@@ -156,7 +172,8 @@ export interface CafeSettings extends Cafe {
   openingHours: OpeningHours;
 }
 
-export type CafeSettingsInput = Omit<CafeSettings, 'id' | 'slug'>;
+/** What the settings page may change. The edition is set by the operator, not by the café. */
+export type CafeSettingsInput = Omit<CafeSettings, 'id' | 'slug' | 'edition'>;
 
 export interface AdminMenu {
   categories: Category[];
@@ -301,4 +318,7 @@ export interface Backend {
 
   /** Demo only: wipe local data back to the seeded state. */
   resetDemo(): void;
+  /** Demo only: the demo establishment's edition, and switching it to try the other one. */
+  demoEdition(): Edition;
+  setDemoEdition(edition: Edition): void;
 }

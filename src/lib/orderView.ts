@@ -1,3 +1,5 @@
+/** How orders and places are shown — display status, countdown, table state and labels. */
+
 import type { Order, OrderItem, OrderStatus, PlaceKind } from '../api/types';
 
 /** What the UI shows. `accepted` and `late` are derived from timestamps, not stored. */

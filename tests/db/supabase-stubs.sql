@@ -10,9 +10,14 @@
 -- This is NOT Supabase: PostgREST, GoTrue and Realtime are not involved. Tests built on it prove
 -- what the database itself enforces (functions, RLS, grants, locking), nothing more.
 
-create role anon nologin;
-create role authenticated nologin;
-create role service_role nologin bypassrls;
+-- Roles belong to the whole server; a second test database on it reuses them.
+do $$
+begin
+  if not exists (select 1 from pg_roles where rolname = 'anon') then create role anon nologin; end if;
+  if not exists (select 1 from pg_roles where rolname = 'authenticated') then create role authenticated nologin; end if;
+  if not exists (select 1 from pg_roles where rolname = 'service_role') then create role service_role nologin bypassrls; end if;
+end;
+$$;
 
 grant usage on schema public to anon, authenticated, service_role;
 alter default privileges in schema public grant all on tables to anon, authenticated, service_role;

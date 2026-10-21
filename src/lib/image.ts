@@ -1,3 +1,5 @@
+/** Product photos — resized in the browser before upload. */
+
 import { ApiError } from '../api/types';
 
 const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp'];

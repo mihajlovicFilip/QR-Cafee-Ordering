@@ -1,3 +1,5 @@
+/** The guest's cart, one per QR code. */
+
 import { useMemo } from 'react';
 import type { CartLineInput, Product } from '../../api/types';
 import { unitPrice } from '../../api/pricing';

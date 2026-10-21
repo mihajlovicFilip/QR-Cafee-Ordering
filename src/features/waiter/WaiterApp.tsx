@@ -1,3 +1,5 @@
+/** The waiter app — staff sign-in, then the dashboard. */
+
 import { useEffect, useState } from 'react';
 import { backend, type StaffSession } from '../../api';
 import { useI18n } from '../../i18n';

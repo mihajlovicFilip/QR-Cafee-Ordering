@@ -1,3 +1,10 @@
+/**
+ * Database test helpers — connections that act as a user, and ready-made establishments.
+ *
+ * `as(role, uid)` behaves like an API request from that user (the SQL role plus auth.uid());
+ * `superuser()` is like the Supabase SQL editor, where RLS does not apply.
+ */
+
 import { randomUUID } from 'node:crypto';
 import pg from 'pg';
 import { afterAll, inject } from 'vitest';
@@ -69,10 +76,14 @@ export async function newUsers(su: pg.Client, n: number, anonymous = true): Prom
   return ids;
 }
 
-/** A café with table 1, room 1 (same number on purpose), three products and four staff members. */
-export async function createCafe(su: pg.Client, opts: { allowRepeat?: boolean } = {}): Promise<Cafe> {
+/**
+ * An establishment with table 1, room 1 (same number on purpose), three products and four staff
+ * members. Stočić Hotel by default, since it has a room; a Stočić Café keeps the room row too,
+ * which is exactly what the edition rules must neutralise.
+ */
+export async function createCafe(su: pg.Client, opts: { allowRepeat?: boolean; edition?: 'cafe' | 'hotel' } = {}): Promise<Cafe> {
   const id = randomUUID();
-  await su.query(`insert into public.cafes (id, slug, name, allow_repeat) values ($1, $2, 'Test kafić', $3)`, [id, `test-${id.slice(0, 8)}`, opts.allowRepeat ?? true]);
+  await su.query(`insert into public.cafes (id, slug, name, allow_repeat, edition) values ($1, $2, 'Test kafić', $3, $4)`, [id, `test-${id.slice(0, 8)}`, opts.allowRepeat ?? true, opts.edition ?? 'hotel']);
 
   const tableToken = `t-${randomUUID()}`;
   const roomToken = `r-${randomUUID()}`;

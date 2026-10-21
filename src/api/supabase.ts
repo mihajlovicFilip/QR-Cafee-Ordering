@@ -1,3 +1,13 @@
+/**
+ * The Supabase backend — the Backend contract over a real database.
+ *
+ * Reads go straight to tables and row level security decides what each user sees; every write is
+ * an RPC to a SECURITY DEFINER function that checks who is calling. Guests and staff use separate
+ * clients with separate session storage, so a waiter and a guest can be signed in side by side in
+ * one browser. Database errors arrive as text and are mapped to stable codes (toApiError), which
+ * the interface translates.
+ */
+
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import {
   ApiError,
@@ -25,7 +35,7 @@ const KNOWN_ERRORS = [
   'unknown_product', 'product_unavailable', 'invalid_quantity', 'invalid_minutes', 'invalid_status', 'forbidden', 'not_found',
   // admin
   'name_required', 'invalid_price', 'invalid_number', 'duplicate_number', 'category_not_empty', 'invalid_color',
-  'cannot_change_self', 'owner_required', 'already_staff', 'invalid_input', 'invalid_range', 'invalid_floor', 'gone',
+  'cannot_change_self', 'owner_required', 'already_staff', 'invalid_input', 'invalid_range', 'invalid_floor', 'hotel_only', 'gone',
 ];
 
 export function toApiError(error: { message?: string; code?: string } | null): ApiError {
@@ -75,6 +85,8 @@ function toCafe(r: Row): Cafe {
   return {
     id: r.id, slug: r.slug, name: r.name, accent: r.accent, defaultLang: r.default_lang,
     allowRepeat: r.allow_repeat, callButton: r.call_button,
+    // Before 20261021120000_editions.sql there is no column: keep rooms visible rather than hide them.
+    edition: r.edition ?? 'hotel',
   };
 }
 
@@ -160,6 +172,7 @@ export function createSupabaseBackend(url: string, key: string): Backend {
       const data = await rpc<TableMenu | null>(guest, 'guest_table', { p_token: token });
       if (data) {
         data.table.kind ??= 'table';
+        data.cafe.edition ??= 'hotel'; // a database without the editions migration
         tableIds.set(token, data.table.id);
       }
       return data;
@@ -270,7 +283,7 @@ export function createSupabaseBackend(url: string, key: string): Backend {
     markServed: (orderId) => rpc<void>(staff, 'mark_order_served', { p_order: orderId }),
     resolveCall: (callId) => rpc<void>(staff, 'resolve_call', { p_call: callId }),
 
-    // ─────────────────────────────── admin (owner / manager; enforced by the admin_* functions and RLS)
+    // === Admin (owner / manager; enforced by the admin_* functions and RLS) =============================================
 
     async adminOrders(cafeId, since, until) {
       let q = staff
@@ -360,6 +373,10 @@ export function createSupabaseBackend(url: string, key: string): Backend {
 
     resetDemo() {
       /* not available against a real database */
+    },
+    demoEdition: () => 'hotel',
+    setDemoEdition() {
+      /* the edition of a real establishment is changed in the database (see README) */
     },
   };
 }

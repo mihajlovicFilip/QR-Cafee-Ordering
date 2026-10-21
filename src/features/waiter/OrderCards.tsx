@@ -1,3 +1,7 @@
+/**
+ * Order cards — accept with a preparation time or reject (new), extend, ready and served (active).
+ */
+
 import { useState } from 'react';
 import { BedDouble, Check, MessageSquare, X } from 'lucide-react';
 import type { Order } from '../../api/types';

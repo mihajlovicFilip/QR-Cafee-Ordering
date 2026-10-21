@@ -1,3 +1,5 @@
+/** Shared hooks — live data, a ticking clock, and state that survives a reload. */
+
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { backend } from '../api';
 

@@ -1,5 +1,10 @@
-// The in-browser demo backend must follow the same rules as the SQL functions
-// (tests/db covers those). Every test starts from a freshly seeded demo (see src/test/setup.ts).
+/**
+ * Demo backend tests.
+ *
+ * The demo must follow the same rules as the SQL functions (tests/db covers those). Every test
+ * starts from a freshly seeded demo (see src/test/setup.ts).
+ */
+
 import { describe, expect, it } from 'vitest';
 import { createDemoBackend } from './demo';
 import { DEMO_CAFE, DEMO_CATEGORIES, DEMO_PRODUCTS, DEMO_STAFF, DEMO_TABLES } from './seedData';
@@ -168,6 +173,46 @@ describe('tables and rooms', () => {
     const places = await api.cafeTables('demo-lipa');
     expect(places.filter((p) => p.kind === 'room')).toHaveLength(90);
     expect(places.find((p) => p.number === 214 && p.kind === 'room')?.floor).toBe(2);
+  });
+});
+
+describe('editions', () => {
+  it('a fresh demo is Stočić Hotel, because it has rooms', () => {
+    expect(api.demoEdition()).toBe('hotel');
+  });
+
+  it('Stočić Café: tables work, a room code is inactive and rooms cannot be managed', async () => {
+    api.setDemoEdition('cafe');
+    expect((await api.loadTable('demo-sto-7'))?.cafe.edition).toBe('cafe');
+    expect(await api.loadTable('demo-soba-214')).toBeNull();
+    asGuest('e1');
+    expect(await outcome(api.placeOrder('demo-soba-214', [line('p1')], ''))).toBe('invalid_table');
+    expect(await outcome(api.placeOrder('demo-sto-7', [line('p1')], ''))).toBe('ok');
+
+    await signIn('jelena');
+    expect(await outcome(api.addRooms('demo-lipa', 401, 402, 4))).toBe('hotel_only');
+    expect(await outcome(api.saveTable('demo-lipa', { kind: 'room', number: 500, seats: 2, zone: 'room', floor: 5 }))).toBe('hotel_only');
+    expect(await outcome(api.regenerateTableToken('demo-r214'))).toBe('hotel_only');
+    expect(await outcome(api.deleteTable('demo-r214'))).toBe('hotel_only');
+    expect(await outcome(api.saveTable('demo-lipa', { kind: 'table', number: 13, seats: 2, zone: 'hall', floor: null }))).toBe('ok');
+  });
+
+  it('back on Stočić Hotel the same room codes work again', async () => {
+    api.setDemoEdition('cafe');
+    api.setDemoEdition('hotel');
+    expect((await api.loadTable('demo-soba-214'))?.table.kind).toBe('room');
+    asGuest('e2');
+    expect(await outcome(api.placeOrder('demo-soba-214', [line('p1')], ''))).toBe('ok');
+  });
+
+  it('demo data from before editions becomes Stočić Hotel when it has rooms, Stočić Café when not', async () => {
+    const tablesOnly = DEMO_TABLES.map((t) => ({ ...t, active: true }));
+    const { edition: _e, ...oldCafe } = DEMO_CAFE;
+    localStorage.setItem('stolic.demo.db.v1', JSON.stringify({ v: 4, cafe: oldCafe, categories: DEMO_CATEGORIES, products: DEMO_PRODUCTS, staff: DEMO_STAFF, tables: tablesOnly, orders: [], calls: [] }));
+    expect(api.demoEdition()).toBe('cafe');
+    localStorage.removeItem('stolic.demo.db.v1');
+    localStorage.setItem('stolic.demo.db.v1', JSON.stringify({ v: 4, cafe: oldCafe, categories: DEMO_CATEGORIES, products: DEMO_PRODUCTS, staff: DEMO_STAFF, tables: [...tablesOnly, { ...DEMO_TABLES[0], id: 'r', kind: 'room', number: 101, token: 'room-101', floor: 1, active: true }], orders: [], calls: [] }));
+    expect(api.demoEdition()).toBe('hotel');
   });
 });
 

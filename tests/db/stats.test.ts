@@ -1,4 +1,5 @@
-// admin_order_stats: totals for the overview, days counted in the café's time zone.
+/** admin_order_stats — totals for the overview, with days counted in the café's time zone. */
+
 import { beforeAll, describe, expect, it } from 'vitest';
 import type pg from 'pg';
 import { createCafe, newUser, testDb, type Cafe } from './db';

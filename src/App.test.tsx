@@ -1,4 +1,7 @@
-// Smoke tests of the real screens in demo mode, in both languages, including failures.
+/**
+ * Screen tests — the real screens in demo mode, in both languages and both editions, including failures.
+ */
+
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import App from './App';
@@ -120,6 +123,45 @@ describe('staff', () => {
     (list.children[10].querySelector('button') as HTMLButtonElement).click();
     expect(await find('Porudžbine tog dana')).toBeTruthy();
     expect(screen.getByRole('button', { name: '30 dana' }).getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('Stočić Café: tables only in admin and in the waiter panel, no room service', async () => {
+    backend.setDemoEdition('cafe');
+    sessionStorage.setItem('stolic.demo.staff', 'jelena');
+    let view = open('/admin/tables');
+    expect(await find('Stolovi i QR kodovi')).toBeTruthy();
+    expect(screen.getByText('Stočić Café').parentElement!.textContent).toMatch(/^Administracija · Stočić Café$/);
+    expect(screen.queryByRole('button', { name: /Sobe/ })).toBeNull();
+    expect(screen.queryByText('Dodaj sobe')).toBeNull();
+    expect(screen.queryByText(/Soba \d+/)).toBeNull();
+    view.unmount();
+
+    view = open('/waiter');
+    expect(await find('Sto 3')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Stolovi' })).toBeTruthy();
+    view.unmount();
+
+    open('/t/demo-soba-214');
+    expect(await find('Ovaj QR kod nije aktivan')).toBeTruthy();
+  });
+
+  it('Stočić Hotel: tables and rooms side by side', async () => {
+    sessionStorage.setItem('stolic.demo.staff', 'jelena');
+    open('/admin/tables');
+    expect(await find('Stolovi, sobe i QR kodovi')).toBeTruthy();
+    expect(screen.getByText('Stočić Hotel').parentElement!.textContent).toMatch(/^Administracija · Stočić Hotel$/);
+    screen.getByRole('button', { name: /Sobe/ }).click();
+    expect(await find('Dodaj sobe')).toBeTruthy();
+    expect(await find('Soba 214')).toBeTruthy();
+  });
+
+  it('the demo edition is switched on the home page', async () => {
+    open('/');
+    expect(await find('Sobe — sobna usluga')).toBeTruthy();
+    screen.getByRole('button', { name: 'Stočić Café' }).click();
+    expect(await find('Demo je sada Stočić Café')).toBeTruthy();
+    expect(screen.queryByText('Sobe — sobna usluga')).toBeNull();
+    expect(backend.demoEdition()).toBe('cafe');
   });
 
   it('the owner sees the overview', async () => {

@@ -1,3 +1,5 @@
+/** Errors as people read them. */
+
 import { ApiError } from '../api/types';
 
 /** A translated, human message for any thrown value. */

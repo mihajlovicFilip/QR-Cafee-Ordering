@@ -1,5 +1,8 @@
-// The waiter side: who sees which orders, the atomic claim, allowed status transitions,
-// preparation time, and waiter calls.
+/**
+ * The waiter side — who sees which orders, the atomic claim, allowed status transitions,
+ * preparation time, and waiter calls.
+ */
+
 import { beforeAll, describe, expect, it } from 'vitest';
 import type pg from 'pg';
 import { createCafe, line, newUser, newUsers, pause, placeOrder, testDb, type Cafe } from './db';

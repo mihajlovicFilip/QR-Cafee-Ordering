@@ -1,5 +1,8 @@
-// Guest ordering against the real schema: menu by QR token, server-side prices, validation,
-// and the five-second limit under concurrent requests.
+/**
+ * Guest ordering against the real schema — menu by QR token, server-side prices, validation,
+ * and the five-second limit under concurrent requests.
+ */
+
 import { beforeAll, describe, expect, it } from 'vitest';
 import type pg from 'pg';
 import { createCafe, line, newUser, newUsers, pause, placeOrder, testDb, type Cafe } from './db';

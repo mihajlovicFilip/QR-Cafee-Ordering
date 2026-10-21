@@ -1,15 +1,17 @@
-// Supabase Edge Function: adds a person to a café's staff.
-//
-// Creating a login needs the service_role key, which must never reach the browser, so the admin
-// panel calls this function instead. It
-//   1. identifies the caller from their access token,
-//   2. asks the database whether the caller may add someone with that role (owner / manager rules
-//      live in public.staff_invite_check, the same place as every other permission),
-//   3. creates the login with the temporary password, unless the email already has one,
-//   4. links the login to the café (public.staff_link_user).
-//
-// Deploy:  supabase functions deploy invite-staff
-// Supabase provides SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY to the function automatically.
+/**
+ * Edge Function invite-staff — adds a person to a café's staff.
+ *
+ * Creating a login needs the service_role key, which must never reach the browser, so the admin
+ * panel calls this function instead. It
+ *   1. identifies the caller from their access token,
+ *   2. asks the database whether the caller may add someone with that role (the owner and manager
+ *      rules live in public.staff_invite_check, next to every other permission),
+ *   3. creates the login with the temporary password, unless the email already has one,
+ *   4. links the login to the café (public.staff_link_user).
+ *
+ * Deploy:  supabase functions deploy invite-staff
+ * Supabase provides SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY to the function automatically.
+ */
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 

@@ -1,3 +1,11 @@
+/**
+ * The guest app — what opens behind a QR code.
+ *
+ * Loads the menu for the token, then moves between menu, cart and order tracking. Status changes
+ * arrive live and are also announced as toasts wherever the guest is. An unknown or inactive code
+ * (a room code of a Stočić Café among them) shows a "not active" screen instead.
+ */
+
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useParams } from 'react-router-dom';
 import { QrCode, WifiOff } from 'lucide-react';

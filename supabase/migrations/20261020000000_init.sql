@@ -8,7 +8,7 @@
 --     that checks who is calling, recomputes prices on the server and moves orders through
 --     allowed status transitions only.
 
--- ─────────────────────────────────────────────────────────────── tables
+-- === Tables =============================================
 
 create table public.cafes (
   id            uuid primary key default gen_random_uuid(),
@@ -128,7 +128,7 @@ create index products_cafe_idx on public.products (cafe_id, sort);
 create index waiter_calls_open_idx on public.waiter_calls (cafe_id) where resolved_at is null;
 create index staff_user_idx on public.staff (user_id);
 
--- ─────────────────────────────────────────────────────────────── helpers
+-- === Helpers =============================================
 
 create or replace function public.is_staff(p_cafe uuid)
 returns boolean
@@ -164,7 +164,7 @@ returns timestamptz
 language sql volatile
 as $$ select now(); $$;
 
--- ─────────────────────────────────────────────────────────────── row level security
+-- === Row level security =============================================
 
 alter table public.cafes         enable row level security;
 alter table public.staff         enable row level security;
@@ -175,6 +175,9 @@ alter table public.orders        enable row level security;
 alter table public.order_items   enable row level security;
 alter table public.waiter_calls  enable row level security;
 
+-- Read access only. Active staff read everything of their own café (is_staff); an anonymous
+-- guest reads only their own orders and order items. Menus reach guests through guest_table,
+-- never through a table read. There are no write policies at all: see the revoke below.
 create policy "staff read own cafe" on public.cafes
   for select to authenticated using (public.is_staff(id));
 
@@ -207,7 +210,7 @@ create policy "staff read calls" on public.waiter_calls
 -- Writes only through the functions below.
 revoke insert, update, delete on all tables in schema public from anon, authenticated;
 
--- ─────────────────────────────────────────────────────────────── guest functions
+-- === Guest functions =============================================
 
 -- Everything a guest needs to render the menu for one QR code. Null for an unknown token.
 create or replace function public.guest_table(p_token text)
@@ -370,7 +373,7 @@ begin
 end;
 $$;
 
--- ─────────────────────────────────────────────────────────────── staff functions
+-- === Staff functions =============================================
 
 -- Atomic claim: only one waiter can accept a pending order. Returns 'ok' or 'taken'.
 create or replace function public.accept_order(p_order uuid, p_minutes int)
@@ -480,7 +483,7 @@ begin
 end;
 $$;
 
--- ─────────────────────────────────────────────────────────────── grants
+-- === Grants =============================================
 
 revoke all on function public.is_staff(uuid)                    from public, anon;
 revoke all on function public._staff_for_order(uuid)            from public, anon, authenticated;
@@ -505,7 +508,7 @@ grant execute on function public.mark_order_ready(uuid)         to authenticated
 grant execute on function public.mark_order_served(uuid)        to authenticated;
 grant execute on function public.resolve_call(uuid)             to authenticated;
 
--- ─────────────────────────────────────────────────────────────── realtime
+-- === Realtime =============================================
 
 do $$
 begin

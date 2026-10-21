@@ -1,4 +1,7 @@
-// Serbian and English must cover the same texts, including every error the app can show.
+/**
+ * Translation tests — Serbian and English cover the same texts, including every error the app can show.
+ */
+
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';

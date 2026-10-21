@@ -1,3 +1,5 @@
+/** Rejecting an order — the guest sees the chosen reason right away. */
+
 import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import type { Order } from '../../api/types';

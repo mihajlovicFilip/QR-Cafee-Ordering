@@ -1,5 +1,8 @@
-// Privileges and isolation as the database enforces them: grants per role, RLS, SECURITY DEFINER
-// hygiene, cross-café access, the owner/manager rules and the Storage policies.
+/**
+ * Privileges and isolation as the database enforces them — grants per role, RLS, SECURITY
+ * DEFINER hygiene, cross-café access, the owner and manager rules, and the Storage policies.
+ */
+
 import { beforeAll, describe, expect, it } from 'vitest';
 import type pg from 'pg';
 import { createCafe, newUser, testDb, type Cafe } from './db';

@@ -1,3 +1,10 @@
+/**
+ * Shared interface components — buttons, badges, dialog, switch and the product tile.
+ *
+ * Colours, radii and type come from the tokens in index.css. The café's accent colour arrives as
+ * the CSS variable --ac, set by each screen from the café settings.
+ */
+
 import { useEffect, useLayoutEffect, useRef, useState, type ButtonHTMLAttributes, type ComponentPropsWithRef, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Cake, CakeSlice, Citrus, Coffee, Egg, Leaf, LoaderCircle, Minus, Plus, Wine } from 'lucide-react';
@@ -5,7 +12,7 @@ import type { CategoryIcon } from '../api/types';
 import type { DisplayStatus } from '../lib/orderView';
 import { useI18n } from '../i18n';
 
-// ───────────────────────────────────────────── Button
+// === Button =============================================
 
 type Variant = 'primary' | 'accent' | 'ghost' | 'danger' | 'dangerSolid';
 type Size = 'sm' | 'md' | 'lg';
@@ -58,7 +65,7 @@ export function IconButton({ label, className = '', children, ...rest }: Compone
   );
 }
 
-// ───────────────────────────────────────────── Language switch
+// === Language switch =============================================
 
 export function LangSwitch({ dark = false }: { dark?: boolean }) {
   const { lang, languages, setLang, t } = useI18n();
@@ -91,7 +98,7 @@ export function LangSwitch({ dark = false }: { dark?: boolean }) {
   );
 }
 
-// ───────────────────────────────────────────── Status badge
+// === Status badge =============================================
 
 const STATUS_TONES: Record<DisplayStatus, string> = {
   pending: 'bg-[#f6ecd1] text-[#76540a]',
@@ -113,7 +120,9 @@ export function StatusBadge({ status }: { status: DisplayStatus }) {
   );
 }
 
-// ───────────────────────────────────────────── Product tile (photo, or a tonal illustration until one is uploaded)
+// === Product tile =============================================
+
+// The product photo, or a tonal illustration of its category until a photo is uploaded.
 
 const ICONS: Record<CategoryIcon, typeof Coffee> = { coffee: Coffee, tea: Leaf, juice: Citrus, breakfast: Egg, dessert: CakeSlice, bar: Wine };
 const TONES: Record<CategoryIcon, [bg: string, fg: string, plate: string]> = {
@@ -141,7 +150,7 @@ export function ProductTile({ icon, imageUrl, size = 84, className = 'rounded-[1
   );
 }
 
-// ───────────────────────────────────────────── Quantity stepper
+// === Quantity stepper =============================================
 
 export function QtyStepper({ value, onChange, min = 1, max = 50, small = false, decLabel, incLabel }: {
   value: number; onChange: (v: number) => void; min?: number; max?: number; small?: boolean; decLabel: string; incLabel: string;
@@ -160,7 +169,7 @@ export function QtyStepper({ value, onChange, min = 1, max = 50, small = false, 
   );
 }
 
-// ───────────────────────────────────────────── Dialog
+// === Dialog =============================================
 
 /**
  * Overlays are portalled to <body>, outside the screen that sets the café's `--ac` colour.
@@ -217,7 +226,7 @@ export function Dialog({ open, onClose, title, children, wide = false }: { open:
   );
 }
 
-// ───────────────────────────────────────────── Switch
+// === Switch =============================================
 
 export function Switch({ checked, onChange, label, disabled = false }: { checked: boolean; onChange: (next: boolean) => void; label: string; disabled?: boolean }) {
   return (
@@ -236,7 +245,7 @@ export function Switch({ checked, onChange, label, disabled = false }: { checked
   );
 }
 
-// ───────────────────────────────────────────── Full-screen states
+// === Full-screen states =============================================
 
 export function CenterState({ icon, title, body, action }: { icon: ReactNode; title: string; body?: string; action?: ReactNode }) {
   return (

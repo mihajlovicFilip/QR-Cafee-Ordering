@@ -1,4 +1,5 @@
-// Tables and hotel rooms: numbering per kind, QR tokens, removal, bulk room creation and floors.
+/** Tables and hotel rooms — numbering per kind, QR tokens, removal, bulk room creation and floors. */
+
 import { beforeAll, describe, expect, it } from 'vitest';
 import type pg from 'pg';
 import { createCafe, line, newUser, placeOrder, testDb, type Cafe } from './db';

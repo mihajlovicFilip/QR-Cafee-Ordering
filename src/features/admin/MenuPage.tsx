@@ -1,3 +1,10 @@
+/**
+ * Menu — categories, products, availability and missing translations.
+ *
+ * Products without a category are invisible to guests, so they get a group of their own with a
+ * warning instead of disappearing from the list.
+ */
+
 import { useMemo, useState, type ReactNode } from 'react';
 import { ArrowDown, ArrowUp, CircleAlert, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { backend, CATEGORY_ICONS, type Category, type CategoryIcon, type Localized, type Product, type StaffSession } from '../../api';

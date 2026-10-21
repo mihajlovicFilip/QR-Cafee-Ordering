@@ -1,3 +1,11 @@
+/**
+ * The waiter dashboard — new, active and finished orders, tables, and waiter calls.
+ *
+ * New orders and calls chime (when sound is on) and show in the tab title. Accepting is atomic on
+ * the server: when two waiters press it together, one gets the order and the other is told it was
+ * taken.
+ */
+
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Bell, LogOut, Volume2, VolumeX } from 'lucide-react';
 import { backend, type Order, type StaffSession } from '../../api';
@@ -6,6 +14,7 @@ import { useLive, useNow, useStoredState } from '../../lib/hooks';
 import { chime } from '../../lib/sound';
 import { describeError } from '../../lib/errors';
 import { minutesSince, placeKey } from '../../lib/orderView';
+import { isHotel } from '../../lib/edition';
 import { Button, IconButton, LangSwitch, Spinner } from '../../components/ui';
 import { useToast } from '../../components/Toast';
 import { ActiveOrderCard, NewOrderCard } from './OrderCards';
@@ -19,6 +28,7 @@ export function Dashboard({ session, onSignOut }: { session: StaffSession; onSig
   const toast = useToast();
   const now = useNow();
   const cafeId = session.cafe.id;
+  const hotel = isHotel(session.cafe);
   const [tab, setTab] = useStoredState<Tab>('stolic.waiter.tab', 'new');
   const [sound, setSound] = useStoredState('stolic.waiter.sound', true);
   const [rejecting, setRejecting] = useState<Order | null>(null);
@@ -85,7 +95,7 @@ export function Dashboard({ session, onSignOut }: { session: StaffSession; onSig
     { id: 'new', label: t('waiter.tabNew'), count: pending.length },
     { id: 'active', label: t('waiter.tabActive'), count: active.length },
     { id: 'done', label: t('waiter.tabDone'), count: done.length },
-    { id: 'tables', label: tables.data?.some((tb) => tb.kind === 'room') ? t('waiter.tabPlaces') : t('waiter.tabTables') },
+    { id: 'tables', label: hotel && tables.data?.some((tb) => tb.kind === 'room') ? t('waiter.tabPlaces') : t('waiter.tabTables') },
   ];
   const offline = !!orders.error;
 
@@ -208,7 +218,7 @@ export function Dashboard({ session, onSignOut }: { session: StaffSession; onSig
         ) : tab === 'done' ? (
           done.length ? <DoneList orders={done} /> : <Empty title={t('waiter.emptyDone')} />
         ) : (
-          <TablesView tables={tables.data ?? []} orders={all} now={now} />
+          <TablesView tables={tables.data ?? []} orders={all} now={now} hotel={hotel} />
         )}
       </main>
 

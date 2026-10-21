@@ -1,4 +1,10 @@
-// Demo-mode data. Mirrors supabase/seed.sql so both modes show the same café.
+/**
+ * Demo data — the menu, tables, rooms and staff of Kafeterija Lipa.
+ *
+ * Mirrors supabase/seed.sql, so the demo and a freshly seeded database show the same
+ * establishment.
+ */
+
 import type { CafeSettings, Category, DiningTable, OptionGroup, Product, StaffMember } from './types';
 
 export const DEMO_CAFE: CafeSettings = {
@@ -9,6 +15,8 @@ export const DEMO_CAFE: CafeSettings = {
   defaultLang: 'sr',
   allowRepeat: true,
   callButton: true,
+  // Stočić Hotel: the demo has rooms. The home page switches the demo to Stočić Café.
+  edition: 'hotel',
   phone: '+381 11 405 2210',
   email: 'zdravo@kafeterijalipa.rs',
   address: 'Cara Dušana 42, Beograd',

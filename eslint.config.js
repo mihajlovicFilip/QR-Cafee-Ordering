@@ -1,3 +1,5 @@
+/** ESLint configuration — recommended JavaScript and TypeScript rules plus the React hook rules. */
+
 import js from '@eslint/js';
 import { defineConfig } from 'eslint/config';
 import tseslint from 'typescript-eslint';

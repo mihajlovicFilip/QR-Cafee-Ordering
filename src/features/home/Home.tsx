@@ -1,11 +1,16 @@
+/** Home — the entry points, and in the demo the edition switch and every table and room link. */
+
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { BedDouble, ChevronRight, ConciergeBell, LayoutDashboard, LayoutGrid, RefreshCw, Smartphone } from 'lucide-react';
-import { backend, type DiningTable } from '../../api';
+import { BedDouble, ChevronRight, ConciergeBell, LayoutDashboard, LayoutGrid, Layers, RefreshCw, Smartphone } from 'lucide-react';
+import { backend, type DiningTable, type Edition } from '../../api';
 import { DEMO_CAFE, DEMO_TABLES } from '../../api/seedData';
 import { useI18n } from '../../i18n';
 import { Button, LangSwitch } from '../../components/ui';
 import { useToast } from '../../components/Toast';
+import { editionName } from '../../lib/edition';
+
+const EDITIONS: Edition[] = ['cafe', 'hotel'];
 
 export default function Home() {
   const { t } = useI18n();
@@ -16,6 +21,16 @@ export default function Home() {
   const refreshTables = () => {
     if (demo) void backend.cafeTables(DEMO_CAFE.id).then(setTables);
   };
+  // The demo can be either edition; a real establishment's edition is set in the database.
+  const [edition, setEdition] = useState<Edition>(() => (demo ? backend.demoEdition() : 'cafe'));
+  const hotel = demo && edition === 'hotel';
+
+  function switchEdition(next: Edition) {
+    backend.setDemoEdition(next);
+    setEdition(next);
+    refreshTables();
+    toast(t('home.editionSwitched', { edition: editionName(next) }));
+  }
 
   useEffect(() => {
     document.title = 'Stočić';
@@ -25,7 +40,7 @@ export default function Home() {
 
   const onlyTables = tables.filter((tb) => tb.kind !== 'room');
   // With 90 rooms, list only the first room of each floor; the admin panel has them all.
-  const rooms = tables.filter((tb) => tb.kind === 'room');
+  const rooms = hotel ? tables.filter((tb) => tb.kind === 'room') : [];
   const roomSamples = rooms.filter((r, i) => i === 0 || Math.floor(r.number / 100) !== Math.floor(rooms[i - 1].number / 100)).slice(0, 8);
   const guestToken = onlyTables.find((tb) => tb.number === 7)?.token ?? onlyTables[0]?.token;
 
@@ -53,12 +68,23 @@ export default function Home() {
             <HomeCard to={`/t/${guestToken}`} icon={<Smartphone size={22} />} title={t('home.guestCard')} hint={t('home.guestCardHint')} />
           ) : null}
           <HomeCard to="/waiter" icon={<ConciergeBell size={22} />} title={t('home.waiterCard')} hint={t('home.waiterCardHint')} />
-          <HomeCard to="/admin" icon={<LayoutDashboard size={22} />} title={t('home.adminCard')} hint={t('home.adminCardHint')} />
+          <HomeCard to="/admin" icon={<LayoutDashboard size={22} />} title={t('home.adminCard')} hint={t(hotel ? 'home.adminCardHintHotel' : 'home.adminCardHint')} />
         </div>
 
         {demo ? (
           <>
             <p className="text-sm text-stone">{t('home.tip')}</p>
+            <section className="flex flex-col gap-3">
+              <h2 id="demo-edition" className="label flex items-center gap-2"><Layers size={14} aria-hidden />{t('home.demoEdition')}</h2>
+              <div className="flex flex-wrap gap-2" role="group" aria-labelledby="demo-edition">
+                {EDITIONS.map((e) => (
+                  <button key={e} type="button" className="chip" aria-pressed={edition === e} onClick={() => switchEdition(e)}>
+                    {editionName(e)}
+                  </button>
+                ))}
+              </div>
+              <p className="text-sm text-stone">{t(hotel ? 'home.editionHotelHint' : 'home.editionCafeHint')}</p>
+            </section>
             <section className="flex flex-col gap-3">
               <h2 className="label flex items-center gap-2"><LayoutGrid size={14} aria-hidden />{t('home.allTables')}</h2>
               <ul className="flex flex-wrap gap-2">
@@ -88,6 +114,7 @@ export default function Home() {
                 size="sm"
                 onClick={() => {
                   backend.resetDemo();
+                  setEdition(backend.demoEdition());
                   refreshTables();
                   try {
                     Object.keys(sessionStorage).filter((k) => k.startsWith('stolic.cart.')).forEach((k) => sessionStorage.removeItem(k));

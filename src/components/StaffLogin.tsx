@@ -1,3 +1,10 @@
+/**
+ * Staff sign-in — shared by the waiter dashboard and administration.
+ *
+ * On a real database: email and password. In the demo: a person picked from the list (no
+ * passwords), filtered by role when it guards the admin panel.
+ */
+
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { backend, type StaffSession } from '../api';
@@ -5,7 +12,6 @@ import { useI18n } from '../i18n';
 import { describeError } from '../lib/errors';
 import { Button, LangSwitch } from './ui';
 
-/** Staff sign-in shared by the waiter panel and the admin panel. */
 export function StaffLogin({ onSignedIn, variant = 'waiter', roles }: {
   onSignedIn: (s: StaffSession) => void;
   variant?: 'waiter' | 'admin';

@@ -1,3 +1,5 @@
+/** Building blocks of the admin screens — localized inputs, page header, dialogs and the drawer. */
+
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Languages, X } from 'lucide-react';
@@ -5,7 +7,7 @@ import type { Localized, Product } from '../../api/types';
 import { useI18n } from '../../i18n';
 import { Button, Dialog, IconButton, useInheritedAccent } from '../../components/ui';
 
-// ───────────────────────────────────────────── translations
+// === Translations =============================================
 
 /** Languages still empty when at least one other language has text. Empty everywhere = nothing to translate. */
 export function missingLangs(field: Localized | null | undefined, languages: string[]): string[] {
@@ -77,7 +79,7 @@ export function LocalizedInput({ label, value, onChange, multiline = false, maxL
   );
 }
 
-// ───────────────────────────────────────────── layout
+// === Layout =============================================
 
 export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: string; actions?: ReactNode }) {
   return (
@@ -106,7 +108,7 @@ export function ErrorNote({ text }: { text: string | null }) {
   return <p role="alert" className="rounded-xl bg-[#f5deda] px-3.5 py-2.5 text-[13px] font-semibold text-danger">{text}</p>;
 }
 
-// ───────────────────────────────────────────── dialogs
+// === Dialogs =============================================
 
 export function ConfirmDialog({ open, title, body, confirmLabel, danger = false, onConfirm, onClose }: {
   open: boolean;

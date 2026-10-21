@@ -1,3 +1,12 @@
+/**
+ * Overview — today at a glance, the last 7 or 30 days, or one chosen day.
+ *
+ * Two kinds of numbers share the screen: what is happening now (active and waiting orders, always
+ * today, live) and totals for the chosen view (admin_order_stats, computed in the database so a
+ * busy month is not cut at the API's row limit). Fetched results carry the view they belong to,
+ * so switching never flashes the previous view's numbers.
+ */
+
 import { useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, ChevronLeft, ChevronRight, ClipboardList, Hourglass, ReceiptText, Timer } from 'lucide-react';
@@ -7,6 +16,7 @@ import { useLive, useNow, useStoredState } from '../../lib/hooks';
 import { displayStatus, minutesSince, placeKey } from '../../lib/orderView';
 import { describeError } from '../../lib/errors';
 import { dayKey } from '../../api/stats';
+import { isHotel } from '../../lib/edition';
 import { Button, IconButton, Spinner, StatusBadge } from '../../components/ui';
 import { PageHeader, useAdminTitle } from './parts';
 
@@ -111,7 +121,7 @@ export function Overview({ session }: { session: StaffSession }) {
     ? [
         t('admin.overview.kpiTodaySub', { amount: money(s.revenue) }),
         !oneDay ? t('admin.overview.perDay', { n: Math.round(s.orders / period) }) : '',
-        s.roomOrders ? t('admin.overview.roomServiceCount', { n: s.roomOrders }) : '',
+        isHotel(session.cafe) && s.roomOrders ? t('admin.overview.roomServiceCount', { n: s.roomOrders }) : '',
       ].filter(Boolean).join(' · ')
     : t('common.loading');
 

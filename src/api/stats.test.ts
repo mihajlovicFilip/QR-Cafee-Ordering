@@ -1,4 +1,5 @@
-// The demo version of admin_order_stats; tests/db/stats.test.ts runs the same scenario in SQL.
+/** Statistics in the browser — the same scenario tests/db/stats.test.ts runs in SQL. */
+
 import { describe, expect, it } from 'vitest';
 import { computeOrderStats, dayKey } from './stats';
 import type { Order, OrderItem } from './types';

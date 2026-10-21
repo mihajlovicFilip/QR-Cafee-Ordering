@@ -1,3 +1,5 @@
+/** The cart — quantities, notes, and sending the order after one confirmation. */
+
 import { useState } from 'react';
 import { ChevronLeft, ConciergeBell, ShoppingBag, Trash } from 'lucide-react';
 import type { TableMenu } from '../../api/types';

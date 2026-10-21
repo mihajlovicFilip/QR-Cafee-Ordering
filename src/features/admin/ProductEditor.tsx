@@ -1,3 +1,9 @@
+/**
+ * Product editor — names and descriptions per language, price, photo and option groups.
+ *
+ * Prices are typed as text and read as whole dinars; the database validates them again.
+ */
+
 import { useRef, useState } from 'react';
 import { ImagePlus, Plus, Trash2, X } from 'lucide-react';
 import { backend, type Category, type Localized, type OptionGroup, type Product } from '../../api';

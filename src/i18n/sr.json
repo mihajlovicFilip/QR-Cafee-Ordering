@@ -194,7 +194,12 @@
     "notFound": "Ova stranica ne postoji",
     "goHome": "Na početnu",
     "adminCard": "Otvori administraciju",
-    "adminCardHint": "Meni, stolovi, sobe i QR kodovi, osoblje, podešavanja"
+    "adminCardHint": "Meni, stolovi i QR kodovi, osoblje, podešavanja",
+    "adminCardHintHotel": "Meni, stolovi, sobe i QR kodovi, osoblje, podešavanja",
+    "demoEdition": "Izdanje demoa",
+    "editionCafeHint": "Kafić, bar ili restoran: poručivanje sa stolova.",
+    "editionHotelHint": "Hotel: stolovi i sobna usluga iz soba.",
+    "editionSwitched": "Demo je sada {edition}"
   },
   "admin": {
     "title": "Administracija",
@@ -212,7 +217,7 @@
     "nav": {
       "overview": "Pregled",
       "menu": "Meni",
-      "tables": "Stolovi i sobe",
+      "tables": "Stolovi i QR", "tablesHotel": "Stolovi i sobe",
       "staff": "Osoblje",
       "settings": "Podešavanja"
     },
@@ -355,8 +360,10 @@
       "productDeleted": "„{name}“ je obrisan iz menija"
     },
     "tables": {
-      "title": "Stolovi, sobe i QR kodovi",
-      "subtitle": "Svaki sto i svaka soba imaju svoj QR kod. Gost ga skenira i odmah dobija meni, bez aplikacije i registracije.",
+      "title": "Stolovi i QR kodovi",
+      "titleHotel": "Stolovi, sobe i QR kodovi",
+      "subtitle": "Svaki sto ima svoj QR kod. Gost ga skenira i odmah dobija meni za taj sto, bez aplikacije i registracije.",
+      "subtitleHotel": "Svaki sto i svaka soba imaju svoj QR kod. Gost ga skenira i odmah dobija meni, bez aplikacije i registracije.",
       "summary": [
         "{n} sto",
         "{n} stola",
@@ -534,6 +541,7 @@
     "storage_full": "Memorija pregledača je puna. Uklonite neku fotografiju ili vratite demo podatke na početak.",
     "invalid_range": "Opseg mora biti od 1 do 9999, najviše 300 soba odjednom.",
     "invalid_floor": "Sprat mora biti ceo broj od 0 do 200 (0 = prizemlje).",
-    "demo_mode": "U demo režimu se prijavljuje izborom osobe sa spiska."
+    "demo_mode": "U demo režimu se prijavljuje izborom osobe sa spiska.",
+    "hotel_only": "Sobe su deo izdanja Stočić Hotel."
   }
 }

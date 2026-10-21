@@ -1,3 +1,10 @@
+/**
+ * Café settings — name, brand colour, contact, opening hours and guest rules.
+ *
+ * The edition is not among them: it decides what the establishment may do, so the operator sets
+ * it in the database (see README).
+ */
+
 import { useEffect, useState, type ReactNode } from 'react';
 import { CircleAlert } from 'lucide-react';
 import { backend, type CafeSettingsInput, type OpeningHours, type StaffSession } from '../../api';
@@ -39,7 +46,7 @@ export function SettingsPage({ session, onSaved }: { session: StaffSession; onSa
   useEffect(() => {
     backend
       .cafeSettings(cafeId)
-      .then(({ id: _id, slug: _slug, ...rest }) => {
+      .then(({ id: _id, slug: _slug, edition: _edition, ...rest }) => {
         setInitial(rest);
         setForm(rest);
       })

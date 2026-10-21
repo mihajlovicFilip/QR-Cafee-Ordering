@@ -1,3 +1,5 @@
+/** Display rules — order status, table state, place labels, floors and the cart's price estimate. */
+
 import { describe, expect, it } from 'vitest';
 import type { Order } from '../api/types';
 import { displayStatus, floorFromNumber, floorLabel, mmss, placeKey, tableState } from './orderView';

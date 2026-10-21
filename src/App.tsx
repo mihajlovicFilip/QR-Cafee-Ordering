@@ -1,3 +1,16 @@
+/**
+ * Routes — the four ways into Stočić.
+ *
+ *   /           home: demo links, or the staff entry points on a real database
+ *   /t/:token   the guest menu behind a table's or a room's QR code
+ *   /waiter     the waiter dashboard
+ *   /admin/*    administration, owners and managers only
+ *
+ * Every screen loads on demand, so a guest who scans a code downloads the guest app and nothing
+ * of the staff screens. The router's basename follows Vite's base: the same build also runs from
+ * a sub-folder (GitHub Pages).
+ */
+
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Link, Route, Routes } from 'react-router-dom';
 import { useI18n } from './i18n';

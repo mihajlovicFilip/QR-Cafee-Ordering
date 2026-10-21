@@ -1,3 +1,5 @@
+/** Order tracking — the countdown, the steps, and earlier orders from the same table or room. */
+
 import { Check, ChevronLeft, Clock, ConciergeBell, Coffee, Hourglass, Plus, X } from 'lucide-react';
 import type { Order, TableMenu } from '../../api/types';
 import { useI18n } from '../../i18n';

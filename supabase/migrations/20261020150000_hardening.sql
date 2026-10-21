@@ -21,12 +21,12 @@
 -- 20261020130000_rooms.sql, and
 --   grant truncate, references, trigger on all tables in schema public to anon, authenticated;
 
--- ─────────────────────────────────────────────────────────────── privileges
+-- === Privileges =============================================
 
 revoke truncate, references, trigger on all tables in schema public from anon, authenticated;
 alter default privileges in schema public revoke truncate, references, trigger on tables from anon, authenticated;
 
--- ─────────────────────────────────────────────────────────────── place_order
+-- === Place_order =============================================
 
 create or replace function public.place_order(p_token text, p_items jsonb, p_note text default '')
 returns uuid
@@ -135,7 +135,7 @@ begin
 end;
 $$;
 
--- ─────────────────────────────────────────────────────────────── call_waiter
+-- === Call_waiter =============================================
 
 -- Tables only (rooms have no "call waiter" button). One open call per table, even when several
 -- guests tap at the same moment.

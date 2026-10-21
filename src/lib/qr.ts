@@ -1,5 +1,10 @@
-// QR codes for tables: an SVG for the screen, a printable card as PNG, and an A4 PDF
-// with four cards per page (A6 each, cut along the dashed lines).
+/**
+ * QR codes — on screen, as a PNG card, and as a print-ready PDF.
+ *
+ * Every table and room gets a card: the café name, the place, the code and a call to action in
+ * both languages. The PDF puts four A6 cards on an A4 page, with dashed lines to cut along.
+ */
+
 import QRCode from 'qrcode';
 
 export interface QrMatrix {
@@ -163,7 +168,9 @@ export async function cardsPdf(cards: QrCard[]): Promise<Blob> {
   return canvasesToPdf(pages);
 }
 
-// ───────────────────────────────────────────── minimal PDF writer (one full-page image per page)
+// === Minimal PDF writer =============================================
+
+// One full-page image per page: enough for print-ready QR cards, with no PDF library.
 
 type Bytes = Uint8Array<ArrayBuffer>;
 
