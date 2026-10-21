@@ -26,6 +26,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # Never publish a version that fails its unit tests (the full suite runs in ci.yml).
+      - run: npm test
       - name: Build
         run: npm run build
         env:

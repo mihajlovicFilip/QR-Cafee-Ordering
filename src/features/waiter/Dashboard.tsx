@@ -27,7 +27,7 @@ export function Dashboard({ session, onSignOut }: { session: StaffSession; onSig
   const calls = useLive(() => backend.cafeCalls(cafeId), (cb) => backend.subscribeCafe(cafeId, cb), [cafeId]);
   const tables = useLive(() => backend.cafeTables(cafeId), () => () => {}, [cafeId], 120_000);
 
-  const all = orders.data ?? [];
+  const all = useMemo(() => orders.data ?? [], [orders.data]);
   const pending = useMemo(() => all.filter((o) => o.status === 'pending').sort((a, b) => a.createdAt - b.createdAt), [all]);
   const active = useMemo(
     () =>

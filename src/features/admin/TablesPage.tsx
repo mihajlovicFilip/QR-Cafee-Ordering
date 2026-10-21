@@ -204,7 +204,7 @@ export function TablesPage({ session }: { session: StaffSession }) {
       )}
 
       <PlaceDialog
-        key={editing === null ? 'closed' : editing === 'new' ? 'new' : editing.id}
+        key={editing === null ? 'place-closed' : editing === 'new' ? 'place-new' : editing.id}
         place={editing}
         suggestedNumber={ofKind.reduce((m, p) => Math.max(m, p.number), 0) + 1}
         onClose={() => setEditing(null)}
@@ -219,7 +219,7 @@ export function TablesPage({ session }: { session: StaffSession }) {
       />
 
       <RoomsDialog
-        key={addingRooms ? 'open' : 'closed'}
+        key={addingRooms ? 'rooms-open' : 'rooms-closed'}
         open={addingRooms}
         suggestedFrom={nextFloor(ofKind.map((p) => p.number))}
         onClose={() => setAddingRooms(false)}

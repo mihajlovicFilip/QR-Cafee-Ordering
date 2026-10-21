@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "types": [],
+    "paths": { "npm:@supabase/supabase-js@2": ["../../node_modules/@supabase/supabase-js"] }
+  },
+  "files": ["deno-shim.d.ts", "invite-staff/index.ts"]
+}

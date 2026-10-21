@@ -27,10 +27,12 @@ const KNOWN_ERRORS = [
   'cannot_change_self', 'owner_required', 'already_staff', 'invalid_input', 'invalid_range', 'invalid_floor', 'gone',
 ];
 
-function toApiError(error: { message?: string; code?: string } | null): ApiError {
+export function toApiError(error: { message?: string; code?: string } | null): ApiError {
   const msg = error?.message ?? '';
   const code = KNOWN_ERRORS.find((c) => msg.includes(c));
   if (code) return new ApiError(code, msg);
+  // The request ran without a valid session (expired token, or signed out in another tab).
+  if (/permission denied for function|JWT expired|invalid JWT/i.test(msg)) return new ApiError('not_authenticated', msg);
   if (/anonymous sign-ins are disabled/i.test(msg)) return new ApiError('anonymous_disabled', msg);
   if (/invalid login credentials/i.test(msg)) return new ApiError('invalid_login', msg);
   if (/fetch|network/i.test(msg)) return new ApiError('network', msg);

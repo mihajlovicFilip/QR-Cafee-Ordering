@@ -510,6 +510,7 @@
     "invite_unavailable": "Adding staff isn’t set up on the server yet (the invite-staff function). See README.md.",
     "storage_full": "The browser’s storage is full. Remove a photo or reset the demo data.",
     "invalid_range": "The range must be within 1–9999, at most 300 rooms at a time.",
-    "invalid_floor": "The floor must be a whole number from 0 to 200 (0 = ground floor)."
+    "invalid_floor": "The floor must be a whole number from 0 to 200 (0 = ground floor).",
+    "demo_mode": "In demo mode, sign in by picking a person from the list."
   }
 }

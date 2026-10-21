@@ -374,6 +374,7 @@ export function createDemoBackend(): Backend {
     async placeOrder(tok, lines: CartLineInput[], note) {
       await wait(350);
       if (!lines.length) throw new ApiError('empty_order');
+      if (lines.length > 40) throw new ApiError('too_many_items');
       const gid = guestId();
       return mutate((db) => {
         const table = tableByToken(db, tok);
@@ -386,7 +387,7 @@ export function createDemoBackend(): Backend {
           const p = db.products.find((x) => x.id === l.productId);
           if (!p) throw new ApiError('unknown_product');
           if (!p.available) throw new ApiError('product_unavailable');
-          if (l.qty < 1 || l.qty > 50) throw new ApiError('invalid_quantity');
+          if (!Number.isInteger(l.qty) || l.qty < 1 || l.qty > 50) throw new ApiError('invalid_quantity');
           return item(db.products, p.id, l.qty, l.choices, l.note.slice(0, 200));
         });
         const number = db.orders.reduce((m, o) => Math.max(m, o.number), 1000) + 1;
@@ -402,7 +403,8 @@ export function createDemoBackend(): Backend {
       const table = tableByToken(db, tok);
       const gid = guestId();
       return db.orders
-        .filter((o) => o.guestId === gid && o.tableId === table.id)
+        // Same window as the Supabase backend: the last 12 hours.
+        .filter((o) => o.guestId === gid && o.tableId === table.id && o.createdAt > Date.now() - 12 * 60 * MIN)
         .sort((a, b) => b.createdAt - a.createdAt)
         .map(strip);
     },
@@ -479,7 +481,7 @@ export function createDemoBackend(): Backend {
     async acceptOrder(orderId, minutes): Promise<ClaimResult> {
       await wait();
       const s = staffOrThrow();
-      if (!(minutes >= 1 && minutes <= 180)) throw new ApiError('invalid_minutes');
+      if (!(Number.isInteger(minutes) && minutes >= 1 && minutes <= 180)) throw new ApiError('invalid_minutes');
       return mutate((db) => {
         const o = findOrder(db, orderId);
         if (o.status !== 'pending') return 'taken';
@@ -494,13 +496,14 @@ export function createDemoBackend(): Backend {
       return mutate((db) => {
         const o = findOrder(db, orderId);
         if (o.status !== 'pending') return 'taken';
-        Object.assign(o, { status: 'rejected', rejectedAt: Date.now(), rejectReason: reason, waiterId: s.id, waiterName: s.name });
+        Object.assign(o, { status: 'rejected', rejectedAt: Date.now(), rejectReason: reason.slice(0, 60), waiterId: s.id, waiterName: s.name });
         return 'ok';
       });
     },
     async extendOrder(orderId, minutes) {
       await wait();
       staffOrThrow();
+      if (!(Number.isInteger(minutes) && minutes >= 1 && minutes <= 60)) throw new ApiError('invalid_minutes');
       mutate((db) => {
         const o = findOrder(db, orderId);
         if (o.status !== 'preparing' || !o.deadline || !o.acceptedAt) throw new ApiError('invalid_status');

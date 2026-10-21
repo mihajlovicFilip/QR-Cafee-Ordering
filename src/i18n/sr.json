@@ -516,6 +516,7 @@
     "invite_unavailable": "Dodavanje osoblja još nije podešeno na serveru (funkcija invite-staff). Uputstvo je u README.md.",
     "storage_full": "Memorija pregledača je puna. Uklonite neku fotografiju ili vratite demo podatke na početak.",
     "invalid_range": "Opseg mora biti od 1 do 9999, najviše 300 soba odjednom.",
-    "invalid_floor": "Sprat mora biti ceo broj od 0 do 200 (0 = prizemlje)."
+    "invalid_floor": "Sprat mora biti ceo broj od 0 do 200 (0 = prizemlje).",
+    "demo_mode": "U demo režimu se prijavljuje izborom osobe sa spiska."
   }
 }
