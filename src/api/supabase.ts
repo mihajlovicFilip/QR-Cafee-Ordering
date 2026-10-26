@@ -278,6 +278,7 @@ export function createSupabaseBackend(url: string, key: string): Backend {
       throw new ApiError('not_authenticated');
     },
     stepAway() {},
+    async endShift() {},
 
     async signOut() {
       await staff.auth.signOut();

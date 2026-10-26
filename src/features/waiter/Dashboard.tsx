@@ -3,9 +3,10 @@
  *
  * New orders and calls chime (when sound is on) and show in the tab title. Accepting is atomic on
  * the server: when two waiters press it together, one gets the order and the other is told it was
- * taken. The header shows whose shift it is and until when; with PIN sign-in, "Switch waiter"
- * hands the screen to a colleague without signing anyone out. Owners and managers also get a way
- * back to administration.
+ * taken. The header shows whose shift it is and until when. With PIN sign-in a waiter's only way
+ * out is "Switch waiter": they stay signed in until the end of the working day and come back with a
+ * tap on their name. Owners and managers sign out instead, and also get a way back to
+ * administration.
  */
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
@@ -35,6 +36,7 @@ export function Dashboard({ session, onSignOut, onStepAway, onDayEnded }: {
 }) {
   const { t, time } = useI18n();
   useSignInEnd(session.until, onDayEnded);
+  const manager = MANAGER_ROLES.includes(session.role);
   const toast = useToast();
   const now = useNow();
   const cafeId = session.cafe.id;
@@ -122,7 +124,7 @@ export function Dashboard({ session, onSignOut, onStepAway, onDayEnded }: {
           </div>
           {/* On phones the buttons take a row of their own, under the name and the language switch. */}
           <div className="order-last flex w-full items-center gap-2 sm:order-none sm:w-auto">
-            {MANAGER_ROLES.includes(session.role) ? (
+            {manager ? (
               <Link
                 to="/admin"
                 aria-label={t('admin.title')}
@@ -145,14 +147,15 @@ export function Dashboard({ session, onSignOut, onStepAway, onDayEnded }: {
                 <span className="text-[13px] font-semibold">{session.name}</span>
                 <span className="text-[11px] font-semibold text-success">{t('waiter.onShiftUntil', { time: time(session.until) })}</span>
               </span>
-              {backend.staffSignIn === 'pin' ? (
+              {backend.staffSignIn === 'pin' && !manager ? (
                 <IconButton label={t('waiter.switchStaff')} onClick={onStepAway} className="size-9 rounded-full">
                   <ArrowLeftRight size={16} />
                 </IconButton>
-              ) : null}
-              <IconButton label={t('waiter.signOut')} onClick={onSignOut} className="size-9 rounded-full">
-                <LogOut size={16} />
-              </IconButton>
+              ) : (
+                <IconButton label={t('waiter.signOut')} onClick={onSignOut} className="size-9 rounded-full">
+                  <LogOut size={16} />
+                </IconButton>
+              )}
             </div>
           </div>
           <LangSwitch />

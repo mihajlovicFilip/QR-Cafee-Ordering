@@ -182,9 +182,10 @@
     "onShift": "Prijavljeni konobari",
     "until": "do {time}",
     "waiterSignIn": "Prijava konobara",
+    "endShift": "Završi smenu: {name}",
     "dayEnded": "Radni dan je završen, pa ste automatski odjavljeni. Prijavite se ponovo za novu smenu.",
     "demoTitle": "Demo nalozi",
-    "demoHint": "Kliknite nalog da se upišu korisničko ime i PIN, pa se prijavite. Dva taba sa različitim konobarima pokazuju kako se porudžbina preuzima."
+    "demoHint": "Kliknite konobara da se upišu njegovo korisničko ime i PIN; već prijavljen konobar odmah ulazi. Vlasnik i menadžer svaki put sami kucaju korisničko ime i PIN."
   },
   "home": {
     "title": "QR poručivanje za vaš lokal",

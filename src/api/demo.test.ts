@@ -333,6 +333,16 @@ describe('signed in until the end of the working day', () => {
     expect(await api.shiftStaff()).toEqual([]);
   });
 
+  it('a waiter who goes home early is taken off the list', async () => {
+    await api.signInWithPin('ana', '641735');
+    api.stepAway();
+    await api.signInWithPin('marko', '752846');
+    await api.endShift('ana');
+    expect((await api.shiftStaff()).map((m) => m.staffId)).toEqual(['marko']);
+    expect((await api.staffSession())?.staffId).toBe('marko');
+    expect(await outcome(api.resumeShift('ana'))).toBe('not_authenticated');
+  });
+
   it('ends at the time set in the settings, and the next morning everyone signs in again', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     try {

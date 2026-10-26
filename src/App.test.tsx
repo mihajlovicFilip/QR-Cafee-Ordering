@@ -127,7 +127,7 @@ describe('staff', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Promeni konobara' }));
     expect(await find('Prijavljeni konobari')).toBeTruthy();
-    expect(screen.getByRole('button', { name: /Ana Petrović/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^Ana Petrović/ })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Prijava konobara' }));
     signIn('marko', '752846');
     expect(await find('Sto 3')).toBeTruthy();
@@ -135,11 +135,38 @@ describe('staff', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Promeni konobara' }));
     await find('Prijavljeni konobari');
-    expect(screen.getByRole('button', { name: /Marko Ilić/ })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: /Ana Petrović/ }));
+    expect(screen.getByRole('button', { name: /^Marko Ilić/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /^Ana Petrović/ }));
     expect(await find('Sto 3')).toBeTruthy();
     expect(screen.getByText('Ana Petrović')).toBeTruthy();
     expect(window.location.pathname).toBe('/waiter');
+  });
+
+  it('owners and managers are typed, never clicked; a waiter already signed in goes straight in from the demo list', async () => {
+    open('/prijava');
+    await find('Prijava za osoblje');
+    expect(screen.getByText('Filip Mihajlović')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Filip Mihajlović|Jelena Marković|Nikola Jovanović/ })).toBeNull();
+    signIn('ana', '641735');
+    expect(await find('Sto 3')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Odjavi se' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Promeni konobara' }));
+    await find('Prijavljeni konobari');
+    fireEvent.click(screen.getByRole('button', { name: 'Prijava konobara' }));
+    fireEvent.click(screen.getByRole('button', { name: /Ana Petrović/ }));
+    expect(await find('Sto 3')).toBeTruthy();
+    expect(window.location.pathname).toBe('/waiter');
+  });
+
+  it('a waiter who goes home early ends the shift from the list', async () => {
+    await asStaff('ana');
+    backend.stepAway();
+    open('/prijava');
+    await find('Prijavljeni konobari');
+    fireEvent.click(screen.getByRole('button', { name: 'Završi smenu: Ana Petrović' }));
+    expect(await find('Korisničko ime')).toBeTruthy();
+    expect(await backend.shiftStaff()).toEqual([]);
   });
 
   it('at the end of the working day the waiter is signed out and told why', async () => {
@@ -158,6 +185,8 @@ describe('staff', () => {
     await find('Porudžbine po satu');
     fireEvent.click(screen.getAllByRole('link', { name: 'Konobarski panel' })[0]);
     expect(await find('Sto 3')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Odjavi se' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Promeni konobara' })).toBeNull();
     fireEvent.click(screen.getByRole('link', { name: 'Administracija' }));
     expect(await find('Porudžbine po satu')).toBeTruthy();
     view.unmount();

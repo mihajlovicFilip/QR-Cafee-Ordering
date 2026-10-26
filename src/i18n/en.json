@@ -182,9 +182,10 @@
     "onShift": "Signed-in waiters",
     "until": "until {time}",
     "waiterSignIn": "Waiter sign-in",
+    "endShift": "End shift: {name}",
     "dayEnded": "The working day is over, so you were signed out. Sign in again for a new shift.",
     "demoTitle": "Demo accounts",
-    "demoHint": "Click an account to fill in its username and PIN, then sign in. Two tabs with different waiters show how an order gets claimed."
+    "demoHint": "Click a waiter to fill in their username and PIN; a waiter already signed in goes straight in. The owner and managers type their username and PIN every time."
   },
   "home": {
     "title": "QR ordering for your venue",

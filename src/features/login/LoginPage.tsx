@@ -8,17 +8,19 @@
  *
  * A sign-in lasts until the end of the working day. Waiters already signed in on this device are
  * listed first and come back with one tap; "Waiter sign-in" below the list is for those who have
- * not signed in yet. Owners and managers are never listed: they always type their PIN. The demo
- * lists its accounts under the form, and a click fills one in.
+ * not signed in yet, and a waiter who goes home early ends their shift from the list. Owners and
+ * managers are never listed and type their username and PIN every time. The demo lists its
+ * accounts under the form: a click fills in a waiter (or lets one already signed in straight
+ * back), while the owner and managers have to be typed.
  */
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, UserPlus } from 'lucide-react';
+import { ArrowLeft, LogOut, UserPlus } from 'lucide-react';
 import { backend, MANAGER_ROLES, PIN_MAX_LENGTH, PIN_MIN_LENGTH, type DemoStaff, type ShiftMember, type StaffSession } from '../../api';
 import { useI18n } from '../../i18n';
 import { describeError } from '../../lib/errors';
-import { Button, LangSwitch, Spinner } from '../../components/ui';
+import { Button, IconButton, LangSwitch, Spinner } from '../../components/ui';
 
 /** Where a signed-in person goes: back to `next` when they may open it, otherwise their own panel. */
 function landing(role: string, next: string | null): string {
@@ -55,6 +57,7 @@ function SignIn({ shift, dayEnded, onSignedIn }: { shift: ShiftMember[]; dayEnde
   const pin = backend.staffSignIn === 'pin';
   const pinHint = t('login.pinHint', { min: PIN_MIN_LENGTH, max: PIN_MAX_LENGTH });
   const [accounts] = useState(() => (backend.mode === 'demo' ? backend.demoStaff() : []));
+  const [list, setList] = useState(shift);
   // With nobody signed in yet there is nothing to pick from: straight to the form.
   const [adding, setAdding] = useState(shift.length === 0);
   const [user, setUser] = useState('');
@@ -97,6 +100,13 @@ function SignIn({ shift, dayEnded, onSignedIn }: { shift: ShiftMember[]; dayEnde
     if (open) setTimeout(() => userField.current?.focus());
   }
 
+  async function endShift(member: ShiftMember) {
+    await backend.endShift(member.staffId);
+    const rest = list.filter((m) => m.staffId !== member.staffId);
+    setList(rest);
+    if (!rest.length) showForm(true);
+  }
+
   function fill(account: DemoStaff) {
     setUser(account.username);
     setSecret(account.pin);
@@ -132,13 +142,13 @@ function SignIn({ shift, dayEnded, onSignedIn }: { shift: ShiftMember[]; dayEnde
                 <section className="flex flex-col gap-2" aria-labelledby="on-shift">
                   <h2 id="on-shift" className="label">{t('login.onShift')}</h2>
                   <ul className="-mx-2.5 flex flex-col gap-0.5">
-                    {shift.map((m) => (
-                      <li key={m.staffId}>
+                    {list.map((m) => (
+                      <li key={m.staffId} className="flex items-center gap-1">
                         <button
                           type="button"
                           disabled={!!busy}
                           onClick={() => run(m.staffId, () => backend.resumeShift(m.staffId))}
-                          className="flex w-full items-center gap-3 rounded-xl px-2.5 py-2.5 text-left transition hover:bg-sand disabled:opacity-60"
+                          className="flex min-w-0 flex-1 items-center gap-3 rounded-xl px-2.5 py-2.5 text-left transition hover:bg-sand disabled:opacity-60"
                         >
                           <Avatar name={m.name} />
                           <span className="flex min-w-0 flex-1 flex-col leading-tight">
@@ -149,6 +159,9 @@ function SignIn({ shift, dayEnded, onSignedIn }: { shift: ShiftMember[]; dayEnde
                             {busy === m.staffId ? t('common.loading') : t('login.until', { time: time(m.until) })}
                           </span>
                         </button>
+                        <IconButton label={t('login.endShift', { name: m.name })} disabled={!!busy} onClick={() => void endShift(m)} className="size-10 text-stone hover:text-danger">
+                          <LogOut size={15} />
+                        </IconButton>
                       </li>
                     ))}
                   </ul>
@@ -203,7 +216,7 @@ function SignIn({ shift, dayEnded, onSignedIn }: { shift: ShiftMember[]; dayEnde
                   </label>
                 )}
                 <Button type="submit" busy={busy === 'form'}>{t('login.submit')}</Button>
-                {shift.length ? (
+                {list.length ? (
                   <button type="button" onClick={() => showForm(false)} className="inline-flex items-center justify-center gap-1.5 self-center text-sm font-semibold text-copper-ink">
                     <ArrowLeft size={15} aria-hidden />
                     {t('login.onShift')}
@@ -224,21 +237,43 @@ function SignIn({ shift, dayEnded, onSignedIn }: { shift: ShiftMember[]; dayEnde
                 <p className="text-[13px] leading-relaxed text-stone">{t('login.demoHint')}</p>
               </div>
               <ul className="flex flex-col gap-0.5">
-                {accounts.map((a) => (
-                  <li key={a.id}>
-                    <button type="button" onClick={() => fill(a)} className="flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition hover:bg-sand">
+                {accounts.map((a) => {
+                  const onShift = list.find((m) => m.staffId === a.id);
+                  const body = (
+                    <>
                       <Avatar name={a.name} />
                       <span className="flex min-w-0 flex-1 flex-col leading-tight">
                         <span className="truncate text-sm font-semibold">{a.name}</span>
                         <span className="text-xs text-stone">{t(`waiter.roles.${a.role}`)}</span>
                       </span>
-                      <span className="flex shrink-0 flex-col items-end font-mono text-xs leading-tight text-stone-dark">
-                        <span>{a.username}</span>
-                        <span>PIN {a.pin}</span>
-                      </span>
-                    </button>
-                  </li>
-                ))}
+                      {onShift ? (
+                        <span className="shrink-0 text-xs font-semibold text-success">{t('login.until', { time: time(onShift.until) })}</span>
+                      ) : (
+                        <span className="flex shrink-0 flex-col items-end font-mono text-xs leading-tight text-stone-dark">
+                          <span>{a.username}</span>
+                          <span>PIN {a.pin}</span>
+                        </span>
+                      )}
+                    </>
+                  );
+                  return (
+                    <li key={a.id}>
+                      {MANAGER_ROLES.includes(a.role) ? (
+                        // Owners and managers type their username and PIN every time: nothing to click.
+                        <div className="flex items-center gap-3 px-2.5 py-2">{body}</div>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={!!busy}
+                          onClick={() => (onShift ? run(a.id, () => backend.resumeShift(a.id)) : fill(a))}
+                          className="flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition hover:bg-sand disabled:opacity-60"
+                        >
+                          {body}
+                        </button>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             </section>
           ) : null}

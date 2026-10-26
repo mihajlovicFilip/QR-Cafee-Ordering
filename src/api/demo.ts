@@ -607,6 +607,15 @@ export function createDemoBackend(): Backend {
       return sessionFor(db, staffId);
     },
     stepAway: leaveTab,
+    async endShift(staffId) {
+      const { [staffId]: _ended, ...rest } = signIns();
+      saveSignIns(rest);
+      try {
+        if (sessionStorage.getItem(STAFF_KEY) === staffId) leaveTab();
+      } catch {
+        /* ignore */
+      }
+    },
     async signOut() {
       const s = currentStaff();
       if (s) {

@@ -39,9 +39,11 @@ brings them back, QR codes included.
   on to their dashboard, owners and managers to administration; five wrong PINs in a row lock the
   username for 15 minutes. A sign-in lasts until the end of the working day (set in Settings,
   03:00 by default), then everyone is signed out. Waiters already signed in on the device are
-  listed on the sign-in page and come back with one tap ("Switch waiter" on the dashboard hands
-  the screen over); "Waiter sign-in" below the list is for the rest. Owners and managers always
-  type their PIN, and move between administration and the waiter dashboard with one button. (Demo
+  listed on the sign-in page and come back with one tap; their only way out of the dashboard is
+  "Switch waiter", which keeps them signed in, and one who goes home early ends the shift from the
+  list. "Waiter sign-in" below the list is for the rest. Owners and managers are never listed and
+  type their username and PIN every time; they move between administration and the waiter
+  dashboard with one button. (Demo
   only for now: on a Supabase database staff still sign in with email and password, one person
   per device, until PINs are added to the database; the end of the working day applies there too.)
 - **Guests:** menu by QR code, search, product options, cart, order notes, live tracking with a

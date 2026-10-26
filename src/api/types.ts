@@ -303,6 +303,8 @@ export interface Backend {
   resumeShift(staffId: string): Promise<StaffSession>;
   /** The person using this screen steps away but stays signed in, so the next one can take over. */
   stepAway(): void;
+  /** Takes a waiter off this device's list before the working day ends (they went home early). */
+  endShift(staffId: string): Promise<void>;
   /** Ends the sign-in before the working day does. */
   signOut(): Promise<void>;
   demoStaff(): DemoStaff[];
