@@ -26,6 +26,7 @@ import {
   type TableMenu,
   type WaiterCall,
 } from './types';
+import { DEFAULT_WORKDAY_END, workdayEndAfter } from '../lib/workday';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = Record<string, any>;
@@ -36,6 +37,7 @@ const KNOWN_ERRORS = [
   // admin
   'name_required', 'invalid_price', 'invalid_number', 'duplicate_number', 'category_not_empty', 'invalid_color',
   'cannot_change_self', 'owner_required', 'already_staff', 'invalid_input', 'invalid_range', 'invalid_floor', 'hotel_only', 'gone',
+  'invalid_workday_end',
 ];
 
 export function toApiError(error: { message?: string; code?: string } | null): ApiError {
@@ -98,7 +100,35 @@ function toCafeSettings(r: Row): CafeSettings {
     email: r.email ?? '',
     address: r.address ?? '',
     openingHours: { weekdays: h.weekdays ?? '', saturday: h.saturday ?? '', sunday: h.sunday ?? '' },
+    // A time column reads as "03:00:00"; before 20261026120000_workday_end.sql there is none.
+    workdayEnd: typeof r.workday_end === 'string' ? r.workday_end.slice(0, 5) : DEFAULT_WORKDAY_END,
   };
+}
+
+const UNTIL_KEY = 'stocic.staff.until';
+
+/**
+ * When the sign-in of `userId` ends. Supabase keeps a staff session until sign-out, so the end of
+ * the working day is kept on the device, set at the first look after signing in.
+ */
+function signInEnds(userId: string, workdayEnd: unknown): number {
+  try {
+    const saved = JSON.parse(localStorage.getItem(UNTIL_KEY) ?? 'null') as { user: string; until: number } | null;
+    if (saved?.user === userId) return saved.until;
+    const until = workdayEndAfter(Date.now(), typeof workdayEnd === 'string' ? workdayEnd.slice(0, 5) : DEFAULT_WORKDAY_END);
+    localStorage.setItem(UNTIL_KEY, JSON.stringify({ user: userId, until }));
+    return until;
+  } catch {
+    return workdayEndAfter(Date.now(), DEFAULT_WORKDAY_END);
+  }
+}
+
+function forgetSignInEnd() {
+  try {
+    localStorage.removeItem(UNTIL_KEY);
+  } catch {
+    /* ignore */
+  }
 }
 
 const toCategory = (r: Row): Category => ({ id: r.id, name: r.name ?? {}, icon: r.icon, sort: r.sort });
@@ -160,8 +190,15 @@ export function createSupabaseBackend(url: string, key: string): Backend {
       .maybeSingle();
     if (error) throw toApiError(error);
     if (!data || !data.cafes) return null;
-    const cafe = Array.isArray(data.cafes) ? data.cafes[0] : data.cafes;
-    return { staffId: data.id, name: data.display_name, role: data.role, cafe: toCafe(cafe as Row) };
+    const cafe = (Array.isArray(data.cafes) ? data.cafes[0] : data.cafes) as Row;
+    const until = signInEnds(auth.session.user.id, cafe.workday_end);
+    if (Date.now() >= until) {
+      // The working day is over: sign out, as the demo does.
+      await staff.auth.signOut();
+      forgetSignInEnd();
+      return null;
+    }
+    return { staffId: data.id, name: data.display_name, role: data.role, cafe: toCafe(cafe), until };
   }
 
   return {
@@ -222,6 +259,7 @@ export function createSupabaseBackend(url: string, key: string): Backend {
     async signIn(email, password) {
       const { error } = await staff.auth.signInWithPassword({ email, password });
       if (error) throw toApiError(error);
+      forgetSignInEnd(); // a new sign-in starts a new working day
       const session = await loadStaffSession();
       if (!session) {
         await staff.auth.signOut();
@@ -234,8 +272,16 @@ export function createSupabaseBackend(url: string, key: string): Backend {
       throw new ApiError('forbidden');
     },
 
+    // One person per device until PINs reach the database; the session itself stays signed in.
+    shiftStaff: async () => [],
+    async resumeShift() {
+      throw new ApiError('not_authenticated');
+    },
+    stepAway() {},
+
     async signOut() {
       await staff.auth.signOut();
+      forgetSignInEnd();
     },
 
     demoStaff: () => [],

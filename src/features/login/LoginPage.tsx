@@ -4,13 +4,18 @@
  * Waiters and baristas go on to the waiter dashboard, owners and managers to administration. A
  * `next` path brings people back to where they were sent from, but only to /waiter or /admin, and
  * to /admin only for managers. Staff sign in with a username and a PIN; on a Supabase database,
- * which has no PINs yet, with email and password. The demo lists its accounts under the form, and
- * a click fills one in, so trying it feels like the real thing.
+ * which has no PINs yet, with email and password.
+ *
+ * A sign-in lasts until the end of the working day. Waiters already signed in on this device are
+ * listed first and come back with one tap; "Waiter sign-in" below the list is for those who have
+ * not signed in yet. Owners and managers are never listed: they always type their PIN. The demo
+ * lists its accounts under the form, and a click fills one in.
  */
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { Link, Navigate, useSearchParams } from 'react-router-dom';
-import { backend, MANAGER_ROLES, PIN_MAX_LENGTH, PIN_MIN_LENGTH, type DemoStaff, type StaffSession } from '../../api';
+import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, UserPlus } from 'lucide-react';
+import { backend, MANAGER_ROLES, PIN_MAX_LENGTH, PIN_MIN_LENGTH, type DemoStaff, type ShiftMember, type StaffSession } from '../../api';
 import { useI18n } from '../../i18n';
 import { describeError } from '../../lib/errors';
 import { Button, LangSwitch, Spinner } from '../../components/ui';
@@ -26,49 +31,70 @@ function landing(role: string, next: string | null): string {
 export default function LoginPage() {
   const { t } = useI18n();
   const [params] = useSearchParams();
+  const { state } = useLocation();
   const [session, setSession] = useState<StaffSession | null | undefined>(undefined);
+  const [shift, setShift] = useState<ShiftMember[]>([]);
 
   useEffect(() => {
-    backend.staffSession().then(setSession).catch(() => setSession(null));
+    Promise.all([backend.staffSession(), backend.shiftStaff()])
+      .then(([current, list]) => {
+        setShift(list);
+        setSession(current);
+      })
+      .catch(() => setSession(null));
   }, []);
 
   if (session === undefined) return <Spinner label={t('common.loading')} />;
   if (session) return <Navigate to={landing(session.role, params.get('next'))} replace />;
-  return <LoginForm onSignedIn={setSession} />;
+  const dayEnded = !!(state as { dayEnded?: boolean } | null)?.dayEnded;
+  return <SignIn shift={shift} dayEnded={dayEnded} onSignedIn={setSession} />;
 }
 
-function LoginForm({ onSignedIn }: { onSignedIn: (s: StaffSession) => void }) {
-  const { t } = useI18n();
+function SignIn({ shift, dayEnded, onSignedIn }: { shift: ShiftMember[]; dayEnded: boolean; onSignedIn: (s: StaffSession) => void }) {
+  const { t, time } = useI18n();
   const pin = backend.staffSignIn === 'pin';
   const pinHint = t('login.pinHint', { min: PIN_MIN_LENGTH, max: PIN_MAX_LENGTH });
   const [accounts] = useState(() => (backend.mode === 'demo' ? backend.demoStaff() : []));
+  // With nobody signed in yet there is nothing to pick from: straight to the form.
+  const [adding, setAdding] = useState(shift.length === 0);
   const [user, setUser] = useState('');
   const [secret, setSecret] = useState('');
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const form = useRef<HTMLFormElement>(null);
+  const userField = useRef<HTMLInputElement>(null);
   const secretField = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     document.title = `${t('login.title')} · Stočić`;
   }, [t]);
 
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    setBusy(true);
+  async function run(id: string, fn: () => Promise<StaffSession>) {
+    setBusy(id);
     setError(null);
     try {
-      onSignedIn(await (pin ? backend.signInWithPin(user, secret) : backend.signIn(user.trim(), secret)));
+      onSignedIn(await fn());
     } catch (err) {
       setError(describeError(t, err));
       // A wrong PIN is typed again from scratch, as on a card terminal.
-      if (pin) {
+      if (id === 'form' && pin) {
         setSecret('');
         secretField.current?.focus();
       }
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
+  }
+
+  function submit(e: FormEvent) {
+    e.preventDefault();
+    void run('form', () => (pin ? backend.signInWithPin(user, secret) : backend.signIn(user.trim(), secret)));
+  }
+
+  function showForm(open: boolean) {
+    setAdding(open);
+    setError(null);
+    if (open) setTimeout(() => userField.current?.focus());
   }
 
   function fill(account: DemoStaff) {
@@ -92,58 +118,106 @@ function LoginForm({ onSignedIn }: { onSignedIn: (s: StaffSession) => void }) {
           <div className="card flex flex-col gap-5 p-7">
             <div className="flex flex-col gap-1.5">
               <h1 className="font-serif text-[28px] leading-tight font-medium">{t('login.title')}</h1>
-              <p className="text-sm leading-relaxed text-stone">{pin ? t('login.subtitle') : t('login.subtitleEmail')}</p>
+              <p className="text-sm leading-relaxed text-stone">
+                {!adding ? t('login.shiftHint') : pin ? t('login.subtitle') : t('login.subtitleEmail')}
+              </p>
             </div>
-            <form ref={form} className="flex flex-col gap-4" onSubmit={submit}>
-              <label className="flex flex-col gap-2">
-                <span className="label">{pin ? t('login.username') : t('login.email')}</span>
-                <input
-                  className="field"
-                  type={pin ? 'text' : 'email'}
-                  autoComplete="username"
-                  autoCapitalize="none"
-                  spellCheck={false}
-                  required
-                  value={user}
-                  onChange={(e) => setUser(e.target.value)}
-                />
-              </label>
-              {pin ? (
-                <div className="flex flex-col gap-2">
-                  <label className="flex flex-col gap-2">
-                    <span className="label">{t('login.pin')}</span>
-                    <input
-                      ref={secretField}
-                      className="field font-mono tracking-[0.5em]"
-                      type="password"
-                      inputMode="numeric"
-                      // A PIN belongs to one person: a shared tablet must not offer to remember it.
-                      autoComplete="off"
-                      pattern={`\\d{${PIN_MIN_LENGTH},${PIN_MAX_LENGTH}}`}
-                      title={pinHint}
-                      maxLength={PIN_MAX_LENGTH}
-                      required
-                      value={secret}
-                      onChange={(e) => setSecret(e.target.value.replace(/\D/g, '').slice(0, PIN_MAX_LENGTH))}
-                      aria-describedby="pin-hint"
-                    />
-                  </label>
-                  <span id="pin-hint" className="text-xs text-stone">{pinHint}</span>
-                </div>
-              ) : (
+
+            {dayEnded ? (
+              <p role="status" className="rounded-xl bg-tint px-3.5 py-2.5 text-[13px] leading-snug font-semibold text-copper-ink">{t('login.dayEnded')}</p>
+            ) : null}
+
+            {!adding ? (
+              <div className="flex flex-col gap-4">
+                <section className="flex flex-col gap-2" aria-labelledby="on-shift">
+                  <h2 id="on-shift" className="label">{t('login.onShift')}</h2>
+                  <ul className="-mx-2.5 flex flex-col gap-0.5">
+                    {shift.map((m) => (
+                      <li key={m.staffId}>
+                        <button
+                          type="button"
+                          disabled={!!busy}
+                          onClick={() => run(m.staffId, () => backend.resumeShift(m.staffId))}
+                          className="flex w-full items-center gap-3 rounded-xl px-2.5 py-2.5 text-left transition hover:bg-sand disabled:opacity-60"
+                        >
+                          <Avatar name={m.name} />
+                          <span className="flex min-w-0 flex-1 flex-col leading-tight">
+                            <span className="truncate text-[15px] font-semibold">{m.name}</span>
+                            <span className="text-xs text-stone">{t(`waiter.roles.${m.role}`)}</span>
+                          </span>
+                          <span className="shrink-0 text-xs font-semibold text-success">
+                            {busy === m.staffId ? t('common.loading') : t('login.until', { time: time(m.until) })}
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+                <Button onClick={() => showForm(true)} disabled={!!busy}>
+                  <UserPlus size={17} aria-hidden />
+                  {t('login.waiterSignIn')}
+                </Button>
+              </div>
+            ) : (
+              <form ref={form} className="flex flex-col gap-4" onSubmit={submit}>
                 <label className="flex flex-col gap-2">
-                  <span className="label">{t('login.password')}</span>
-                  <input className="field" type="password" autoComplete="current-password" required value={secret} onChange={(e) => setSecret(e.target.value)} />
+                  <span className="label">{pin ? t('login.username') : t('login.email')}</span>
+                  <input
+                    ref={userField}
+                    className="field"
+                    type={pin ? 'text' : 'email'}
+                    autoComplete="username"
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    required
+                    value={user}
+                    onChange={(e) => setUser(e.target.value)}
+                  />
                 </label>
-              )}
-              <Button type="submit" busy={busy}>{t('login.submit')}</Button>
-            </form>
+                {pin ? (
+                  <div className="flex flex-col gap-2">
+                    <label className="flex flex-col gap-2">
+                      <span className="label">{t('login.pin')}</span>
+                      <input
+                        ref={secretField}
+                        className="field font-mono tracking-[0.5em]"
+                        type="password"
+                        inputMode="numeric"
+                        // A PIN belongs to one person: a shared tablet must not offer to remember it.
+                        autoComplete="off"
+                        pattern={`\\d{${PIN_MIN_LENGTH},${PIN_MAX_LENGTH}}`}
+                        title={pinHint}
+                        maxLength={PIN_MAX_LENGTH}
+                        required
+                        value={secret}
+                        onChange={(e) => setSecret(e.target.value.replace(/\D/g, '').slice(0, PIN_MAX_LENGTH))}
+                        aria-describedby="pin-hint"
+                      />
+                    </label>
+                    <span id="pin-hint" className="text-xs text-stone">{pinHint}</span>
+                  </div>
+                ) : (
+                  <label className="flex flex-col gap-2">
+                    <span className="label">{t('login.password')}</span>
+                    <input className="field" type="password" autoComplete="current-password" required value={secret} onChange={(e) => setSecret(e.target.value)} />
+                  </label>
+                )}
+                <Button type="submit" busy={busy === 'form'}>{t('login.submit')}</Button>
+                {shift.length ? (
+                  <button type="button" onClick={() => showForm(false)} className="inline-flex items-center justify-center gap-1.5 self-center text-sm font-semibold text-copper-ink">
+                    <ArrowLeft size={15} aria-hidden />
+                    {t('login.onShift')}
+                  </button>
+                ) : null}
+              </form>
+            )}
+
             {error ? (
               <p role="alert" className="rounded-xl bg-[#f5deda] px-3.5 py-2.5 text-[13px] font-semibold text-danger">{error}</p>
             ) : null}
           </div>
 
-          {accounts.length ? (
+          {adding && accounts.length ? (
             <section className="card flex flex-col gap-3 p-5" aria-labelledby="demo-accounts">
               <div className="flex flex-col gap-1">
                 <h2 id="demo-accounts" className="label">{t('login.demoTitle')}</h2>
@@ -153,9 +227,7 @@ function LoginForm({ onSignedIn }: { onSignedIn: (s: StaffSession) => void }) {
                 {accounts.map((a) => (
                   <li key={a.id}>
                     <button type="button" onClick={() => fill(a)} className="flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition hover:bg-sand">
-                      <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-espresso text-xs font-bold text-paper" aria-hidden>
-                        {a.name.split(' ').map((w) => w[0]).join('').slice(0, 2)}
-                      </span>
+                      <Avatar name={a.name} />
                       <span className="flex min-w-0 flex-1 flex-col leading-tight">
                         <span className="truncate text-sm font-semibold">{a.name}</span>
                         <span className="text-xs text-stone">{t(`waiter.roles.${a.role}`)}</span>
@@ -173,5 +245,13 @@ function LoginForm({ onSignedIn }: { onSignedIn: (s: StaffSession) => void }) {
         </div>
       </main>
     </div>
+  );
+}
+
+function Avatar({ name }: { name: string }) {
+  return (
+    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-espresso text-xs font-bold text-paper" aria-hidden>
+      {name.split(' ').map((w) => w[0]).join('').slice(0, 2)}
+    </span>
   );
 }

@@ -21,6 +21,7 @@ export const DEMO_CAFE: CafeSettings = {
   email: 'zdravo@kafeterijalipa.rs',
   address: 'Cara Dušana 42, Beograd',
   openingHours: { weekdays: '07:00–23:00', saturday: '08:00–24:00', sunday: '09:00–22:00' },
+  workdayEnd: '03:00',
 };
 
 const SEATS = [2, 4, 4, 2, 4, 6, 2, 4, 2, 4, 2, 2];

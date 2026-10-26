@@ -20,6 +20,9 @@ function open(path: string, lang: 'sr' | 'en' = 'sr') {
 
 const find = (text: string | RegExp) => screen.findByText(text, undefined, { timeout: 4000 });
 
+/** Signs a demo person in on this tab, as the sign-in page would. */
+const asStaff = (id: string) => backend.demoSignIn(id);
+
 /** Types a username and PIN into the sign-in form and submits it. */
 function signIn(username: string, pin: string, submit = 'Prijavi se') {
   fireEvent.change(screen.getByLabelText(/Korisničko ime|Username/), { target: { value: username } });
@@ -64,7 +67,7 @@ describe('guest', () => {
 
 describe('staff', () => {
   it('the waiter panel shows waiting orders', async () => {
-    sessionStorage.setItem('stolic.demo.staff', 'ana');
+    await asStaff('ana');
     open('/waiter');
     expect(await find('Sto 3')).toBeTruthy();
     expect(screen.getAllByText('Čeka potvrdu').length).toBeGreaterThan(0);
@@ -108,21 +111,72 @@ describe('staff', () => {
   });
 
   it('someone already signed in skips the form', async () => {
-    sessionStorage.setItem('stolic.demo.staff', 'jelena');
+    await asStaff('jelena');
     open('/prijava');
     expect(await find('Porudžbine po satu')).toBeTruthy();
     expect(window.location.pathname).toBe('/admin');
   });
 
+  it('waiters stay signed in: the next one signs in below the list, and the first comes back with a tap', async () => {
+    open('/waiter');
+    await find('Prijava za osoblje');
+    signIn('ana', '641735');
+    expect(await find('Sto 3')).toBeTruthy();
+    expect(screen.getByText(/^Na smeni do \d\d:\d\d$/)).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Administracija' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Promeni konobara' }));
+    expect(await find('Prijavljeni konobari')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Ana Petrović/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Prijava konobara' }));
+    signIn('marko', '752846');
+    expect(await find('Sto 3')).toBeTruthy();
+    expect(screen.getByText('Marko Ilić')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Promeni konobara' }));
+    await find('Prijavljeni konobari');
+    expect(screen.getByRole('button', { name: /Marko Ilić/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Ana Petrović/ }));
+    expect(await find('Sto 3')).toBeTruthy();
+    expect(screen.getByText('Ana Petrović')).toBeTruthy();
+    expect(window.location.pathname).toBe('/waiter');
+  });
+
+  it('at the end of the working day the waiter is signed out and told why', async () => {
+    await asStaff('ana');
+    localStorage.setItem('stolic.demo.signins', JSON.stringify({ ana: Date.now() + 1500 }));
+    open('/waiter');
+    expect(await find('Sto 3')).toBeTruthy();
+    expect(await screen.findByText(/Radni dan je završen/, undefined, { timeout: 6000 })).toBeTruthy();
+    expect(window.location.pathname).toBe('/prijava');
+    expect(screen.queryByText('Prijavljeni konobari')).toBeNull();
+  });
+
+  it('owners and managers move between administration and the waiter dashboard; waiters see no way in', async () => {
+    await asStaff('nikola');
+    const view = open('/admin');
+    await find('Porudžbine po satu');
+    fireEvent.click(screen.getAllByRole('link', { name: 'Konobarski panel' })[0]);
+    expect(await find('Sto 3')).toBeTruthy();
+    fireEvent.click(screen.getByRole('link', { name: 'Administracija' }));
+    expect(await find('Porudžbine po satu')).toBeTruthy();
+    view.unmount();
+    await backend.signOut();
+    await asStaff('marko');
+    open('/waiter');
+    await find('Sto 3');
+    expect(screen.queryByRole('link', { name: 'Administracija' })).toBeNull();
+  });
+
   it('a waiter who reaches /admin is told they have no access', async () => {
-    sessionStorage.setItem('stolic.demo.staff', 'ana');
+    await asStaff('ana');
     open('/admin');
     expect(await find('Nemate pristup administraciji')).toBeTruthy();
   });
 
   it('every admin page renders without React key warnings', async () => {
     const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
-    sessionStorage.setItem('stolic.demo.staff', 'jelena');
+    await asStaff('jelena');
     for (const [path, text] of [['/admin/menu', 'Kapućino'], ['/admin/tables', 'Sto 12'], ['/admin/staff', 'Ana Petrović'], ['/admin/settings', 'Radno vreme']]) {
       const view = open(path);
       expect(await find(text)).toBeTruthy();
@@ -134,7 +188,7 @@ describe('staff', () => {
   });
 
   it('the overview shows today, and the last 30 days on request', async () => {
-    sessionStorage.setItem('stolic.demo.staff', 'jelena');
+    await asStaff('jelena');
     open('/admin');
     expect(await find('Porudžbine po satu')).toBeTruthy();
     expect(screen.queryByText(/Brojke se osvežavaju/)).toBeNull();
@@ -145,7 +199,7 @@ describe('staff', () => {
   });
 
   it('one earlier day can be picked from the calendar, and stepped through', async () => {
-    sessionStorage.setItem('stolic.demo.staff', 'jelena');
+    await asStaff('jelena');
     open('/admin');
     await find('Porudžbine po satu');
     const d = new Date();
@@ -159,7 +213,7 @@ describe('staff', () => {
   });
 
   it('a day in the 30-day chart opens that day', async () => {
-    sessionStorage.setItem('stolic.demo.staff', 'jelena');
+    await asStaff('jelena');
     open('/admin');
     await find('Porudžbine po satu');
     screen.getByRole('button', { name: '30 dana' }).click();
@@ -171,7 +225,7 @@ describe('staff', () => {
 
   it('Stočić Café: tables only in admin and in the waiter panel, no room service', async () => {
     backend.setDemoEdition('cafe');
-    sessionStorage.setItem('stolic.demo.staff', 'jelena');
+    await asStaff('jelena');
     let view = open('/admin/tables');
     expect(await find('Stolovi i QR kodovi')).toBeTruthy();
     expect(screen.getByText('Stočić Café').parentElement!.textContent).toMatch(/^Administracija · Stočić Café$/);
@@ -190,7 +244,7 @@ describe('staff', () => {
   });
 
   it('Stočić Hotel: tables and rooms side by side', async () => {
-    sessionStorage.setItem('stolic.demo.staff', 'jelena');
+    await asStaff('jelena');
     open('/admin/tables');
     expect(await find('Stolovi, sobe i QR kodovi')).toBeTruthy();
     expect(screen.getByText('Stočić Hotel').parentElement!.textContent).toMatch(/^Administracija · Stočić Hotel$/);
@@ -209,7 +263,7 @@ describe('staff', () => {
   });
 
   it('the owner sees the overview', async () => {
-    sessionStorage.setItem('stolic.demo.staff', 'jelena');
+    await asStaff('jelena');
     open('/admin', 'en');
     expect(await find('Active orders')).toBeTruthy();
   });

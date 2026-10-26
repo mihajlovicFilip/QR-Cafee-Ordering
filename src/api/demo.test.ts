@@ -305,3 +305,56 @@ describe('staff sign-in with a username and PIN', () => {
     expect((await api.signInWithPin('filip', '1542')).role).toBe('owner');
   });
 });
+
+describe('signed in until the end of the working day', () => {
+  const settings = async () => {
+    const { id: _id, slug: _slug, edition: _edition, ...rest } = await api.cafeSettings('demo-lipa');
+    return rest;
+  };
+
+  it('lists waiters signed in on this device, who come back without a PIN; owners and managers never do', async () => {
+    await api.signInWithPin('ana', '641735');
+    api.stepAway();
+    await api.signInWithPin('jelena', '482913');
+    api.stepAway();
+    expect(await api.staffSession()).toBeNull();
+    expect((await api.shiftStaff()).map((m) => m.staffId)).toEqual(['ana']);
+    expect((await api.resumeShift('ana')).staffId).toBe('ana');
+    expect(await outcome(api.resumeShift('jelena'))).toBe('not_authenticated');
+    expect(await outcome(api.resumeShift('marko'))).toBe('not_authenticated');
+  });
+
+  it('signing out ends the day early, stepping away does not', async () => {
+    await api.signInWithPin('ana', '641735');
+    api.stepAway();
+    expect(await api.shiftStaff()).toHaveLength(1);
+    await api.resumeShift('ana');
+    await api.signOut();
+    expect(await api.shiftStaff()).toEqual([]);
+  });
+
+  it('ends at the time set in the settings, and the next morning everyone signs in again', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      vi.setSystemTime(new Date(2026, 9, 26, 14, 0));
+      await signIn('jelena');
+      expect((await settings()).workdayEnd).toBe('03:00');
+      await api.updateCafe('demo-lipa', { ...(await settings()), workdayEnd: '23:30' });
+      const ana = await api.signInWithPin('ana', '641735');
+      expect(new Date(ana.until)).toEqual(new Date(2026, 9, 26, 23, 30));
+      vi.setSystemTime(new Date(2026, 9, 26, 23, 31));
+      expect(await api.staffSession()).toBeNull();
+      expect(await api.shiftStaff()).toEqual([]);
+      // Signing in after the end runs until the same time the next day.
+      expect(new Date((await api.signInWithPin('ana', '641735')).until)).toEqual(new Date(2026, 9, 27, 23, 30));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('refuses an end of the working day that is not a time', async () => {
+    await signIn('jelena');
+    for (const bad of ['24:00', '7:00', '']) expect(await outcome(api.updateCafe('demo-lipa', { ...(await settings()), workdayEnd: bad }))).toBe('invalid_workday_end');
+  });
+});
+

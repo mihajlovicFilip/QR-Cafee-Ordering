@@ -3,14 +3,17 @@
  *
  * New orders and calls chime (when sound is on) and show in the tab title. Accepting is atomic on
  * the server: when two waiters press it together, one gets the order and the other is told it was
- * taken.
+ * taken. The header shows whose shift it is and until when; with PIN sign-in, "Switch waiter"
+ * hands the screen to a colleague without signing anyone out. Owners and managers also get a way
+ * back to administration.
  */
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { Bell, LogOut, Volume2, VolumeX } from 'lucide-react';
-import { backend, type Order, type StaffSession } from '../../api';
+import { Link } from 'react-router-dom';
+import { ArrowLeftRight, Bell, LayoutDashboard, LogOut, Volume2, VolumeX } from 'lucide-react';
+import { backend, MANAGER_ROLES, type Order, type StaffSession } from '../../api';
 import { useI18n } from '../../i18n';
-import { useLive, useNow, useStoredState } from '../../lib/hooks';
+import { useLive, useNow, useSignInEnd, useStoredState } from '../../lib/hooks';
 import { chime } from '../../lib/sound';
 import { describeError } from '../../lib/errors';
 import { minutesSince, placeKey } from '../../lib/orderView';
@@ -23,8 +26,15 @@ import { RejectDialog } from './RejectDialog';
 
 type Tab = 'new' | 'active' | 'done' | 'tables';
 
-export function Dashboard({ session, onSignOut }: { session: StaffSession; onSignOut: () => void }) {
+export function Dashboard({ session, onSignOut, onStepAway, onDayEnded }: {
+  session: StaffSession;
+  onSignOut: () => void;
+  /** Leaves the dashboard but stays signed in (PIN sign-in only). */
+  onStepAway: () => void;
+  onDayEnded: () => void;
+}) {
   const { t, time } = useI18n();
+  useSignInEnd(session.until, onDayEnded);
   const toast = useToast();
   const now = useNow();
   const cafeId = session.cafe.id;
@@ -106,25 +116,44 @@ export function Dashboard({ session, onSignOut }: { session: StaffSession; onSig
           <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-(--ac) font-serif text-[22px] font-semibold text-white" aria-hidden>
             {session.cafe.name.replace(/^kafe\S*\s+/i, '').charAt(0)}
           </div>
-          <div className="min-w-0 flex-1">
+          <div className="min-w-[9rem] flex-1">
             <h1 className="truncate font-serif text-[19px] leading-tight font-semibold">{session.cafe.name}</h1>
             <p className="text-[13px] text-stone">{t('waiter.panel')}</p>
           </div>
-          <Button variant="ghost" size="sm" aria-pressed={sound} title={t('waiter.soundHint')} onClick={() => { setSound(!sound); if (!sound) chime(); }}>
-            {sound ? <Volume2 size={16} aria-hidden /> : <VolumeX size={16} aria-hidden />}
-            <span className="hidden sm:inline">{sound ? t('waiter.soundOn') : t('waiter.soundOff')}</span>
-          </Button>
-          <div className="flex h-11 items-center gap-2.5 rounded-full border border-line-strong bg-paper pr-1 pl-1.5">
-            <span className="flex size-8 items-center justify-center rounded-full bg-espresso text-xs font-bold text-paper" aria-hidden>
-              {session.name.split(' ').map((w) => w[0]).join('').slice(0, 2)}
-            </span>
-            <span className="hidden flex-col leading-tight sm:flex">
-              <span className="text-[13px] font-semibold">{session.name}</span>
-              <span className="text-[11px] font-semibold text-success">{t('waiter.onShift')}</span>
-            </span>
-            <IconButton label={t('waiter.signOut')} onClick={onSignOut} className="size-9 rounded-full">
-              <LogOut size={16} />
-            </IconButton>
+          {/* On phones the buttons take a row of their own, under the name and the language switch. */}
+          <div className="order-last flex w-full items-center gap-2 sm:order-none sm:w-auto">
+            {MANAGER_ROLES.includes(session.role) ? (
+              <Link
+                to="/admin"
+                aria-label={t('admin.title')}
+                title={t('admin.title')}
+                className="inline-flex h-9 items-center gap-2 rounded-[10px] border border-line-strong bg-paper px-3.5 text-[13px] font-semibold text-espresso no-underline transition hover:bg-[#f5efe6]"
+              >
+                <LayoutDashboard size={16} aria-hidden />
+                <span className="hidden sm:inline">{t('admin.title')}</span>
+              </Link>
+            ) : null}
+            <Button variant="ghost" size="sm" aria-pressed={sound} title={t('waiter.soundHint')} onClick={() => { setSound(!sound); if (!sound) chime(); }}>
+              {sound ? <Volume2 size={16} aria-hidden /> : <VolumeX size={16} aria-hidden />}
+              <span className="hidden sm:inline">{sound ? t('waiter.soundOn') : t('waiter.soundOff')}</span>
+            </Button>
+            <div className="flex h-11 items-center gap-1.5 rounded-full border border-line-strong bg-paper pr-1 pl-1.5">
+              <span className="flex size-8 items-center justify-center rounded-full bg-espresso text-xs font-bold text-paper" aria-hidden>
+                {session.name.split(' ').map((w) => w[0]).join('').slice(0, 2)}
+              </span>
+              <span className="ml-1 hidden flex-col leading-tight sm:flex">
+                <span className="text-[13px] font-semibold">{session.name}</span>
+                <span className="text-[11px] font-semibold text-success">{t('waiter.onShiftUntil', { time: time(session.until) })}</span>
+              </span>
+              {backend.staffSignIn === 'pin' ? (
+                <IconButton label={t('waiter.switchStaff')} onClick={onStepAway} className="size-9 rounded-full">
+                  <ArrowLeftRight size={16} />
+                </IconButton>
+              ) : null}
+              <IconButton label={t('waiter.signOut')} onClick={onSignOut} className="size-9 rounded-full">
+                <LogOut size={16} />
+              </IconButton>
+            </div>
           </div>
           <LangSwitch />
         </div>

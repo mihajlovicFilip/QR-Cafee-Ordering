@@ -8,7 +8,10 @@
  * Hotel edition rules. demo.test.ts and tests/db check both against the same scenarios.
  *
  * Staff sign in with a username and a PIN. Five wrong PINs in a row lock that username for 15
- * minutes; the count is saved with the data, so reloading the page does not reset it.
+ * minutes; the count is saved with the data, so reloading the page does not reset it. A sign-in
+ * lasts until the end of the working day and belongs to the device (localStorage), while each tab
+ * remembers who is using it (sessionStorage): two tabs can be two waiters, and a waiter who steps
+ * away comes back with one tap. Owners and managers never come back without their PIN.
  *
  * Saved data carries a version (DemoDb.v) and read() upgrades anything older in place, so a
  * visitor's demo survives every new feature.
@@ -18,6 +21,7 @@ import { DEMO_CAFE, DEMO_CATEGORIES, DEMO_PRODUCTS, DEMO_ROOMS, DEMO_STAFF, DEMO
 import { resolveChoice } from './pricing';
 import { floorFromNumber, MAX_FLOOR } from '../lib/orderView';
 import { computeOrderStats } from './stats';
+import { DEFAULT_WORKDAY_END, isWorkdayEnd, workdayEndAfter } from '../lib/workday';
 import {
   ApiError,
   MANAGER_ROLES,
@@ -36,6 +40,7 @@ import {
   type Order,
   type OrderItem,
   type Product,
+  type ShiftMember,
   type StaffMember,
   type StaffSession,
   type WaiterCall,
@@ -44,6 +49,7 @@ import {
 const DB_KEY = 'stolic.demo.db.v1';
 const GUEST_KEY = 'stolic.demo.guest';
 const STAFF_KEY = 'stolic.demo.staff';
+const SIGNINS_KEY = 'stolic.demo.signins';
 const MIN = 60_000;
 const PIN_ATTEMPTS = 5;
 const PIN_LOCK = 15 * MIN;
@@ -74,7 +80,7 @@ interface DemoMenu {
   staff: DemoStaffRow[];
 }
 interface DemoDb extends DemoMenu {
-  /** 2 = tables and rooms, 3 = rooms have a floor, 4 = a month of history, 5 = editions, 6 = usernames and PINs, 7 = Filip's account. Older data is upgraded in read(). */
+  /** 2 = tables and rooms, 3 = rooms have a floor, 4 = a month of history, 5 = editions, 6 = usernames and PINs, 7 = Filip's account, 8 = end of the working day. Older data is upgraded in read(). */
   v?: number;
   orders: DemoOrder[];
   calls: DemoCall[];
@@ -208,7 +214,7 @@ function seed(): DemoDb {
   const n = 1001 + past.length; // the orders below are the newest, in this order
   return {
     ...seedMenu(),
-    v: 7,
+    v: 8,
     calls: [],
     orders: [
       ...past,
@@ -251,9 +257,10 @@ function read(): DemoDb {
  * Before v5 there were no editions: rooms make it Stočić Hotel, like the SQL migration.
  * Before v6 staff had no username or PIN: the seeded people get theirs, anyone added since a new one.
  * Before v7 the seed had no Filip Mihajlović: people added to the seed later join saved data too.
+ * Before v8 there was no end of the working day: the default, like the SQL migration.
  */
 function upgrade(db: DemoDb): DemoDb {
-  if (db.v === 7) return db;
+  if (db.v === 8) return db;
   if (!db.v || db.v < 2) {
     for (const t of db.tables) t.kind ??= 'table';
     for (const o of db.orders) o.tableKind ??= 'table';
@@ -282,7 +289,8 @@ function upgrade(db: DemoDb): DemoDb {
     const username = db.staff.some((s) => s.username === seeded.username) ? newUsername(db, seeded.username) : seeded.username;
     db.staff.push({ ...structuredClone(seeded), username, failedPins: 0, lockedUntil: 0 });
   }
-  db.v = 7;
+  db.cafe.workdayEnd ??= DEFAULT_WORKDAY_END;
+  db.v = 8;
   return db;
 }
 
@@ -364,9 +372,30 @@ function publicCafe(c: CafeSettings): Cafe {
   return { id, slug, name, accent, defaultLang, allowRepeat, callButton, edition };
 }
 
+/** Who is signed in on this device: staff id → the end of their working day (epoch ms). Ended ones are left out. */
+function signIns(): Record<string, number> {
+  try {
+    const now = Date.now();
+    const all = JSON.parse(localStorage.getItem(SIGNINS_KEY) ?? '{}') as Record<string, number>;
+    return Object.fromEntries(Object.entries(all).filter(([, until]) => until > now));
+  } catch {
+    return {};
+  }
+}
+
+function saveSignIns(all: Record<string, number>) {
+  try {
+    localStorage.setItem(SIGNINS_KEY, JSON.stringify(all));
+  } catch {
+    /* storage blocked: the sign-in then lasts as long as the tab */
+  }
+}
+
+/** The person using this tab, while their sign-in lasts. */
 function currentStaff(db = read()) {
   try {
     const id = sessionStorage.getItem(STAFF_KEY);
+    if (!id || !signIns()[id]) return null;
     return db.staff.find((s) => s.id === id && s.active) ?? null;
   } catch {
     return null;
@@ -375,8 +404,24 @@ function currentStaff(db = read()) {
 
 function sessionFor(db: DemoDb, id: string): StaffSession {
   const s = db.staff.find((x) => x.id === id && x.active);
-  if (!s) throw new ApiError('forbidden');
-  return { staffId: s.id, name: s.name, role: s.role, cafe: publicCafe(db.cafe) };
+  const until = signIns()[id];
+  if (!s || !until) throw new ApiError('forbidden');
+  return { staffId: s.id, name: s.name, role: s.role, cafe: publicCafe(db.cafe), until };
+}
+
+/** Signs `id` in on this device until the end of the working day, and makes them this tab's person. */
+function startSession(db: DemoDb, id: string): StaffSession {
+  saveSignIns({ ...signIns(), [id]: workdayEndAfter(Date.now(), db.cafe.workdayEnd) });
+  sessionStorage.setItem(STAFF_KEY, id);
+  return sessionFor(db, id);
+}
+
+function leaveTab() {
+  try {
+    sessionStorage.removeItem(STAFF_KEY);
+  } catch {
+    /* ignore */
+  }
 }
 
 function staffOrThrow(db = read()) {
@@ -543,25 +588,40 @@ export function createDemoBackend(): Backend {
         return { error: 'invalid_pin' };
       });
       if ('error' in result) throw new ApiError(result.error);
-      const session = sessionFor(read(), result.id);
-      sessionStorage.setItem(STAFF_KEY, result.id);
-      return session;
+      return startSession(read(), result.id);
     },
+    async shiftStaff(): Promise<ShiftMember[]> {
+      const db = read();
+      return Object.entries(signIns())
+        .map(([id, until]) => ({ until, s: db.staff.find((x) => x.id === id && x.active) }))
+        .filter(({ s }) => s && !MANAGER_ROLES.includes(s.role))
+        .map(({ until, s }) => ({ staffId: s!.id, name: s!.name, role: s!.role, until }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+    },
+    async resumeShift(staffId) {
+      await wait();
+      const db = read();
+      const s = db.staff.find((x) => x.id === staffId && x.active);
+      if (!s || MANAGER_ROLES.includes(s.role) || !signIns()[staffId]) throw new ApiError('not_authenticated');
+      sessionStorage.setItem(STAFF_KEY, staffId);
+      return sessionFor(db, staffId);
+    },
+    stepAway: leaveTab,
     async signOut() {
-      try {
-        sessionStorage.removeItem(STAFF_KEY);
-      } catch {
-        /* ignore */
+      const s = currentStaff();
+      if (s) {
+        const { [s.id]: _ended, ...rest } = signIns();
+        saveSignIns(rest);
       }
+      leaveTab();
     },
     staffSignIn: 'pin',
     demoStaff: () => read().staff.filter((s) => s.active).map(({ id, name, role, username, pin }) => ({ id, name, role, username, pin })),
     async demoSignIn(staffId) {
       await wait();
-      const session = sessionFor(read(), staffId);
-      // Per tab, so two tabs can be two different waiters.
-      sessionStorage.setItem(STAFF_KEY, staffId);
-      return session;
+      const db = read();
+      if (!db.staff.some((s) => s.id === staffId && s.active)) throw new ApiError('forbidden');
+      return startSession(db, staffId);
     },
 
     async cafeOrders() {
@@ -689,6 +749,7 @@ export function createDemoBackend(): Backend {
         if (!name) throw new ApiError('name_required');
         if (!/^#[0-9a-f]{6}$/i.test(input.accent)) throw new ApiError('invalid_color');
         if (input.defaultLang !== 'sr' && input.defaultLang !== 'en') throw new ApiError('invalid_input');
+        if (input.workdayEnd !== undefined && !isWorkdayEnd(input.workdayEnd)) throw new ApiError('invalid_workday_end');
         db.cafe = {
           ...db.cafe,
           name,
@@ -704,6 +765,7 @@ export function createDemoBackend(): Backend {
             saturday: input.openingHours.saturday.slice(0, 40),
             sunday: input.openingHours.sunday.slice(0, 40),
           },
+          workdayEnd: input.workdayEnd ?? db.cafe.workdayEnd,
         };
       });
     },

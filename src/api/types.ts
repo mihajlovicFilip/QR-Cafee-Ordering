@@ -140,6 +140,16 @@ export interface StaffSession {
   name: string;
   role: string;
   cafe: Cafe;
+  /** When this sign-in ends on its own: the end of the working day (epoch ms). */
+  until: number;
+}
+
+/** A waiter or barista still signed in on this device: one tap on the sign-in page brings them back. */
+export interface ShiftMember {
+  staffId: string;
+  name: string;
+  role: string;
+  until: number;
 }
 
 /** A demo account as the sign-in page lists it: the demo shows usernames and PINs on purpose. */
@@ -176,6 +186,8 @@ export interface CafeSettings extends Cafe {
   email: string;
   address: string;
   openingHours: OpeningHours;
+  /** "HH:MM": every staff sign-in ends at this time (see lib/workday.ts). */
+  workdayEnd: string;
 }
 
 /** What the settings page may change. The edition is set by the operator, not by the café. */
@@ -285,6 +297,13 @@ export interface Backend {
   signIn(email: string, password: string): Promise<StaffSession>;
   /** Too many wrong PINs in a row lock the username for a while (login_locked). */
   signInWithPin(username: string, pin: string): Promise<StaffSession>;
+  /** Waiters and baristas signed in on this device until the end of the working day (PIN sign-in only). */
+  shiftStaff(): Promise<ShiftMember[]>;
+  /** Continues as someone from shiftStaff(), without a PIN. Owners and managers always type theirs. */
+  resumeShift(staffId: string): Promise<StaffSession>;
+  /** The person using this screen steps away but stays signed in, so the next one can take over. */
+  stepAway(): void;
+  /** Ends the sign-in before the working day does. */
   signOut(): Promise<void>;
   demoStaff(): DemoStaff[];
   demoSignIn(staffId: string): Promise<StaffSession>;

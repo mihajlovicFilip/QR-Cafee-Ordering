@@ -37,8 +37,13 @@ brings them back, QR codes included.
 
 - **Staff sign-in** at `/prijava`, one page for everyone: a username and a PIN of 4 to 6 digits. Waiters go
   on to their dashboard, owners and managers to administration; five wrong PINs in a row lock the
-  username for 15 minutes. (Demo only for now: on a Supabase database staff still sign in with
-  email and password until PINs are added to the database.)
+  username for 15 minutes. A sign-in lasts until the end of the working day (set in Settings,
+  03:00 by default), then everyone is signed out. Waiters already signed in on the device are
+  listed on the sign-in page and come back with one tap ("Switch waiter" on the dashboard hands
+  the screen over); "Waiter sign-in" below the list is for the rest. Owners and managers always
+  type their PIN, and move between administration and the waiter dashboard with one button. (Demo
+  only for now: on a Supabase database staff still sign in with email and password, one person
+  per device, until PINs are added to the database; the end of the working day applies there too.)
 - **Guests:** menu by QR code, search, product options, cart, order notes, live tracking with a
   countdown, earlier orders, "Call waiter" (tables only).
 - **Waiters:** new / active / finished orders, accept with a preparation time or reject with a
@@ -91,6 +96,7 @@ home page switches it to Stočić Café and back.
    | `20261020150000_hardening.sql` | protection against simultaneous requests and surplus privileges |
    | `20261021090000_order_stats.sql` | statistics for the overview |
    | `20261021120000_editions.sql` | Stočić Café / Stočić Hotel |
+   | `20261026120000_workday_end.sql` | the end of the working day (staff sign-out time) |
 
 3. **SQL Editor** → run `supabase/seed.sql` (the demo establishment *Kafeterija Lipa*: a menu in
    both languages, 12 tables and 90 rooms, Stočić Hotel). The seed must run after all migrations.

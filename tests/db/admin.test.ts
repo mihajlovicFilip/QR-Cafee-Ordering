@@ -62,4 +62,17 @@ describe('café settings', () => {
     expect(c).toEqual({ name: 'Hotel Lipa', accent: '#2f5d50', default_lang: 'en', allow_repeat: false, call_button: false, phone: '011', email: null, opening_hours: { weekdays: '07:00–23:00' } });
     await expect(manager.query(`select public.admin_update_cafe($1, '{"name":"X","accent":"red","defaultLang":"sr"}'::jsonb)`, [cafe.id])).rejects.toThrow(/^invalid_color$/);
   });
+
+  it('keeps the end of the working day: 03:00 by default, a valid time when sent, unchanged when left out', async () => {
+    const end = async () => (await su.query(`select to_char(workday_end, 'HH24:MI') as t from public.cafes where id = $1`, [cafe.id])).rows[0].t;
+    const save = (extra: Record<string, unknown>) =>
+      manager.query(`select public.admin_update_cafe($1, $2::jsonb)`, [cafe.id, JSON.stringify({ name: 'Lipa', accent: '#2f5d50', defaultLang: 'sr', ...extra })]);
+    expect(await end()).toBe('03:00');
+    await save({ workdayEnd: '23:30' });
+    expect(await end()).toBe('23:30');
+    await save({});
+    expect(await end()).toBe('23:30');
+    for (const bad of ['24:00', '7:00', '23:30:00', 'noon']) await expect(save({ workdayEnd: bad })).rejects.toThrow(/^invalid_workday_end$/);
+    expect(await end()).toBe('23:30');
+  });
 });

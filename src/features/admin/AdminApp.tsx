@@ -2,21 +2,23 @@
  * Administration — access gate, sidebar and the admin routes.
  *
  * Without a session it sends people to the staff sign-in (/prijava), which brings them back to the
- * same page. Only active owners and managers get in; a waiter who reaches it sees a "no access"
- * screen. The
+ * same page, and at the end of the working day it signs them out the same way. Only active owners
+ * and managers get in; a waiter who reaches it sees a "no access" screen. The waiter dashboard is
+ * one tap away, at the top on phones and in the sidebar on wide screens. The
  * database applies the same rule to every admin call (is_manager), so this gate is a courtesy,
  * not the protection. The sidebar names the establishment's edition, and its tables entry follows
  * it: tables for Stočić Café, tables and rooms for Stočić Hotel.
  */
 
 import { useCallback, useEffect, useState, type CSSProperties } from 'react';
-import { Link, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom';
+import { Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { ConciergeBell, LayoutDashboard, Lock, LogOut, QrCode, Settings, UsersRound, UtensilsCrossed } from 'lucide-react';
 import { backend, MANAGER_ROLES, type StaffSession } from '../../api';
 import { useI18n } from '../../i18n';
 import { Button, CenterState, IconButton, LangSwitch, Spinner } from '../../components/ui';
 import { ToastProvider } from '../../components/Toast';
 import { editionName, isHotel } from '../../lib/edition';
+import { useSignInEnd } from '../../lib/hooks';
 import { initials } from './parts';
 import { Overview } from './Overview';
 import { MenuPage } from './MenuPage';
@@ -27,6 +29,7 @@ import { SettingsPage } from './SettingsPage';
 export default function AdminApp() {
   const { t } = useI18n();
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const [session, setSession] = useState<StaffSession | null | undefined>(undefined);
 
   useEffect(() => {
@@ -37,6 +40,11 @@ export default function AdminApp() {
     await backend.signOut();
     setSession(null);
   }, []);
+
+  const dayEnded = useCallback(async () => {
+    await backend.signOut();
+    navigate(`/prijava?next=${encodeURIComponent(pathname)}`, { replace: true, state: { dayEnded: true } });
+  }, [navigate, pathname]);
 
   if (session === undefined) return <Spinner label={t('common.loading')} />;
   if (!session) return <Navigate to={`/prijava?next=${encodeURIComponent(pathname)}`} replace />;
@@ -57,7 +65,7 @@ export default function AdminApp() {
   }
   return (
     <ToastProvider>
-      <AdminShell session={session} onSession={setSession} onSignOut={signOut} />
+      <AdminShell session={session} onSession={setSession} onSignOut={signOut} onDayEnded={dayEnded} />
     </ToastProvider>
   );
 }
@@ -70,9 +78,15 @@ const NAV = [
   { to: '/admin/settings', key: 'settings', icon: Settings },
 ] as const;
 
-function AdminShell({ session, onSession, onSignOut }: { session: StaffSession; onSession: (s: StaffSession) => void; onSignOut: () => void }) {
+function AdminShell({ session, onSession, onSignOut, onDayEnded }: {
+  session: StaffSession;
+  onSession: (s: StaffSession) => void;
+  onSignOut: () => void;
+  onDayEnded: () => void;
+}) {
   const { t } = useI18n();
   const cafe = session.cafe;
+  useSignInEnd(session.until, onDayEnded);
 
   // After the settings page saves, pick up the new name and colour everywhere.
   const refreshSession = useCallback(() => {
@@ -92,7 +106,16 @@ function AdminShell({ session, onSession, onSignOut }: { session: StaffSession; 
               {t('admin.title')} · <span className="whitespace-nowrap">{editionName(cafe.edition)}</span>
             </p>
           </div>
-          <div className="lg:hidden">
+          <div className="flex items-center gap-2 lg:hidden">
+            <Link
+              to="/waiter"
+              aria-label={t('admin.toWaiter')}
+              title={t('admin.toWaiter')}
+              className="inline-flex h-9 items-center gap-2 rounded-[10px] border border-line-strong bg-paper px-3 text-[13px] font-semibold text-espresso no-underline transition hover:bg-[#f5efe6]"
+            >
+              <ConciergeBell size={16} aria-hidden />
+              <span className="hidden sm:inline">{t('admin.toWaiter')}</span>
+            </Link>
             <LangSwitch />
           </div>
         </div>

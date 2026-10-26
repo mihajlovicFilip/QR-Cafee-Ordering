@@ -1,4 +1,4 @@
-/** Shared hooks — live data, a ticking clock, and state that survives a reload. */
+/** Shared hooks — live data, a ticking clock, state that survives a reload, and the end of a sign-in. */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { backend } from '../api';
@@ -84,4 +84,33 @@ export function useStoredState<T>(key: string, initial: T, storage: 'local' | 's
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, value]);
   return [value, setValue] as const;
+}
+
+/**
+ * Calls `onEnd` once the sign-in runs out (the end of the working day). Checked again whenever the
+ * screen comes back, because a sleeping tablet does not fire timers on time.
+ */
+export function useSignInEnd(until: number, onEnd: () => void) {
+  const latest = useRef(onEnd);
+  useEffect(() => {
+    latest.current = onEnd;
+  });
+  useEffect(() => {
+    let done = false;
+    const check = () => {
+      if (!done && Date.now() >= until) {
+        done = true;
+        latest.current();
+      }
+    };
+    // A second late on purpose: a timer that fires a moment early would never check again.
+    const timer = setTimeout(check, Math.min(Math.max(until - Date.now(), 0) + 1000, 2 ** 31 - 1));
+    document.addEventListener('visibilitychange', check);
+    window.addEventListener('focus', check);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('visibilitychange', check);
+      window.removeEventListener('focus', check);
+    };
+  }, [until]);
 }

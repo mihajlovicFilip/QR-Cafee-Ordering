@@ -1,5 +1,6 @@
 /**
- * Café settings — name, brand colour, contact, opening hours and guest rules.
+ * Café settings — name, brand colour, contact, opening hours, the end of the working day (when
+ * staff are signed out) and guest rules.
  *
  * The edition is not among them: it decides what the establishment may do, so the operator sets
  * it in the database (see README).
@@ -10,6 +11,7 @@ import { CircleAlert } from 'lucide-react';
 import { backend, type CafeSettingsInput, type OpeningHours, type StaffSession } from '../../api';
 import { useI18n } from '../../i18n';
 import { describeError } from '../../lib/errors';
+import { isWorkdayEnd } from '../../lib/workday';
 import { Button, Spinner, Switch } from '../../components/ui';
 import { useToast } from '../../components/Toast';
 import { ErrorNote, Field, PageHeader, useAdminTitle } from './parts';
@@ -64,6 +66,7 @@ export function SettingsPage({ session, onSaved }: { session: StaffSession; onSa
     setError(null);
     if (!form!.name.trim()) return setError(t('errors.name_required'));
     if (!validColor) return setError(t('errors.invalid_color'));
+    if (!isWorkdayEnd(form!.workdayEnd)) return setError(t('errors.invalid_workday_end'));
     setSaving(true);
     try {
       await backend.updateCafe(cafeId, form!);
@@ -170,6 +173,9 @@ export function SettingsPage({ session, onSaved }: { session: StaffSession; onSa
             );
           })}
         </div>
+        <Field label={t('admin.settings.workdayEnd')} hint={t('admin.settings.workdayEndHint')}>
+          <input type="time" className="field w-[140px]" required value={form.workdayEnd} onChange={(e) => set('workdayEnd', e.target.value)} />
+        </Field>
       </Section>
 
       <Section title={t('admin.settings.sectionGuests')}>

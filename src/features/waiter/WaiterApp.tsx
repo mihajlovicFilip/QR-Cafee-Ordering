@@ -1,7 +1,7 @@
 /** The waiter app — the dashboard, behind the staff sign-in (/prijava). */
 
 import { useEffect, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { backend, type StaffSession } from '../../api';
 import { useI18n } from '../../i18n';
 import { Spinner } from '../../components/ui';
@@ -10,6 +10,7 @@ import { Dashboard } from './Dashboard';
 
 export default function WaiterApp() {
   const { t } = useI18n();
+  const navigate = useNavigate();
   const [session, setSession] = useState<StaffSession | null | undefined>(undefined);
 
   useEffect(() => {
@@ -25,6 +26,14 @@ export default function WaiterApp() {
         onSignOut={async () => {
           await backend.signOut();
           setSession(null);
+        }}
+        onStepAway={() => {
+          backend.stepAway();
+          setSession(null);
+        }}
+        onDayEnded={async () => {
+          await backend.signOut();
+          navigate('/prijava?next=/waiter', { replace: true, state: { dayEnded: true } });
         }}
       />
     </ToastProvider>
