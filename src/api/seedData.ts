@@ -37,12 +37,14 @@ export const DEMO_ROOMS: DiningTable[] = [1, 2, 3].flatMap((floor) =>
   }),
 );
 
-export const DEMO_STAFF: StaffMember[] = [
-  { id: 'jelena', name: 'Jelena Marković', role: 'owner', active: true, email: 'jelena@kafeterijalipa.rs' },
-  { id: 'nikola', name: 'Nikola Jovanović', role: 'manager', active: true, email: 'nikola@kafeterijalipa.rs' },
-  { id: 'ana', name: 'Ana Petrović', role: 'waiter', active: true, email: 'ana@kafeterijalipa.rs' },
-  { id: 'marko', name: 'Marko Ilić', role: 'waiter', active: true, email: 'marko@kafeterijalipa.rs' },
-  { id: 'stefan', name: 'Stefan Ristić', role: 'barista', active: false, email: 'stefan@kafeterijalipa.rs' },
+/** Usernames and PINs are shown on the demo sign-in page, so anyone can try every role. */
+export const DEMO_STAFF: (StaffMember & { username: string; pin: string })[] = [
+  { id: 'filip', name: 'Filip Mihajlović', role: 'owner', active: true, email: null, username: 'filip', pin: '1542' },
+  { id: 'jelena', name: 'Jelena Marković', role: 'owner', active: true, email: 'jelena@kafeterijalipa.rs', username: 'jelena', pin: '482913' },
+  { id: 'nikola', name: 'Nikola Jovanović', role: 'manager', active: true, email: 'nikola@kafeterijalipa.rs', username: 'nikola', pin: '573024' },
+  { id: 'ana', name: 'Ana Petrović', role: 'waiter', active: true, email: 'ana@kafeterijalipa.rs', username: 'ana', pin: '641735' },
+  { id: 'marko', name: 'Marko Ilić', role: 'waiter', active: true, email: 'marko@kafeterijalipa.rs', username: 'marko', pin: '752846' },
+  { id: 'stefan', name: 'Stefan Ristić', role: 'barista', active: false, email: 'stefan@kafeterijalipa.rs', username: 'stefan', pin: '863957' },
 ];
 
 export const DEMO_CATEGORIES: Category[] = [

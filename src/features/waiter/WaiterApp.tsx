@@ -1,10 +1,10 @@
-/** The waiter app — staff sign-in, then the dashboard. */
+/** The waiter app — the dashboard, behind the staff sign-in (/prijava). */
 
 import { useEffect, useState } from 'react';
+import { Navigate } from 'react-router-dom';
 import { backend, type StaffSession } from '../../api';
 import { useI18n } from '../../i18n';
 import { Spinner } from '../../components/ui';
-import { StaffLogin } from '../../components/StaffLogin';
 import { ToastProvider } from '../../components/Toast';
 import { Dashboard } from './Dashboard';
 
@@ -17,7 +17,7 @@ export default function WaiterApp() {
   }, []);
 
   if (session === undefined) return <Spinner label={t('common.loading')} />;
-  if (!session) return <StaffLogin onSignedIn={setSession} />;
+  if (!session) return <Navigate to="/prijava?next=/waiter" replace />;
   return (
     <ToastProvider>
       <Dashboard

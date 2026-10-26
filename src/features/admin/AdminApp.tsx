@@ -1,19 +1,20 @@
 /**
- * Administration — sign-in gate, sidebar and the admin routes.
+ * Administration — access gate, sidebar and the admin routes.
  *
- * Only active owners and managers get in; a waiter who signs in sees a "no access" screen. The
+ * Without a session it sends people to the staff sign-in (/prijava), which brings them back to the
+ * same page. Only active owners and managers get in; a waiter who reaches it sees a "no access"
+ * screen. The
  * database applies the same rule to every admin call (is_manager), so this gate is a courtesy,
  * not the protection. The sidebar names the establishment's edition, and its tables entry follows
  * it: tables for Stočić Café, tables and rooms for Stočić Hotel.
  */
 
 import { useCallback, useEffect, useState, type CSSProperties } from 'react';
-import { Link, Navigate, NavLink, Route, Routes } from 'react-router-dom';
+import { Link, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom';
 import { ConciergeBell, LayoutDashboard, Lock, LogOut, QrCode, Settings, UsersRound, UtensilsCrossed } from 'lucide-react';
 import { backend, MANAGER_ROLES, type StaffSession } from '../../api';
 import { useI18n } from '../../i18n';
 import { Button, CenterState, IconButton, LangSwitch, Spinner } from '../../components/ui';
-import { StaffLogin } from '../../components/StaffLogin';
 import { ToastProvider } from '../../components/Toast';
 import { editionName, isHotel } from '../../lib/edition';
 import { initials } from './parts';
@@ -25,6 +26,7 @@ import { SettingsPage } from './SettingsPage';
 
 export default function AdminApp() {
   const { t } = useI18n();
+  const { pathname } = useLocation();
   const [session, setSession] = useState<StaffSession | null | undefined>(undefined);
 
   useEffect(() => {
@@ -37,7 +39,7 @@ export default function AdminApp() {
   }, []);
 
   if (session === undefined) return <Spinner label={t('common.loading')} />;
-  if (!session) return <StaffLogin variant="admin" roles={MANAGER_ROLES} onSignedIn={setSession} />;
+  if (!session) return <Navigate to={`/prijava?next=${encodeURIComponent(pathname)}`} replace />;
   if (!MANAGER_ROLES.includes(session.role)) {
     return (
       <CenterState

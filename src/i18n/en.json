@@ -169,12 +169,16 @@
   },
   "login": {
     "title": "Staff sign-in",
-    "subtitle": "Sign in with the account your venue owner gave you.",
+    "subtitle": "Enter the username and PIN you got from the venue’s owner or a manager.",
+    "subtitleEmail": "Sign in with the account your venue owner gave you.",
+    "username": "Username",
+    "pin": "PIN",
+    "pinHint": "{min} to {max} digits",
     "email": "Email",
     "password": "Password",
     "submit": "Sign in",
-    "demoTitle": "Choose a waiter",
-    "demoSubtitle": "There are no passwords in demo mode. Open two tabs with different waiters to see how an order gets claimed."
+    "demoTitle": "Demo accounts",
+    "demoHint": "Click an account to fill in its username and PIN, then sign in. Two tabs with different waiters show how an order gets claimed."
   },
   "home": {
     "title": "QR ordering for your venue",
@@ -203,12 +207,6 @@
   },
   "admin": {
     "title": "Admin",
-    "login": {
-      "title": "Admin sign-in",
-      "subtitle": "The admin panel is for the venue’s owner and managers. Use the same account as for the waiter dashboard.",
-      "demoTitle": "Choose an admin",
-      "demoSubtitle": "There are no passwords in demo mode. The owner and managers can open the admin panel."
-    },
     "noAccessTitle": "You don’t have access to the admin panel",
     "noAccessBody": "This area is for the venue’s owner and managers only. You can still use the waiter dashboard.",
     "toWaiter": "Waiter dashboard",
@@ -436,7 +434,7 @@
       "password": "Temporary password",
       "passwordHint": "At least 8 characters. Hand it over in person. If an account with this email already exists, its password is not changed.",
       "generate": "New password",
-      "demoNote": "There are no passwords in demo mode — the new member appears on the demo sign-in right away.",
+      "demoNote": "In demo mode the new member gets a username and PIN right away; both are listed on the sign-in page.",
       "invitedNew": "Account created for {name}",
       "invitedExisting": "Existing account {email} added to staff",
       "colName": "Name",
@@ -512,6 +510,8 @@
     "forbidden": "You don’t have permission to do that.",
     "not_found": "Order not found.",
     "invalid_login": "Wrong email or password.",
+    "invalid_pin": "Wrong username or PIN.",
+    "login_locked": "Too many wrong attempts. Try again in 15 minutes.",
     "not_staff": "This account isn’t linked to any venue.",
     "anonymous_disabled": "Turn on anonymous sign-ins in your Supabase settings.",
     "not_authenticated": "Your session has expired. Please refresh the page.",
@@ -535,7 +535,7 @@
     "storage_full": "The browser’s storage is full. Remove a photo or reset the demo data.",
     "invalid_range": "The range must be within 1–9999, at most 300 rooms at a time.",
     "invalid_floor": "The floor must be a whole number from 0 to 200 (0 = ground floor).",
-    "demo_mode": "In demo mode, sign in by picking a person from the list.",
+    "demo_mode": "In demo mode, sign in with a username and PIN.",
     "hotel_only": "Rooms are part of the Stočić Hotel edition."
   }
 }

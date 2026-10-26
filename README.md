@@ -35,6 +35,10 @@ brings them back, QR codes included.
 
 ## Features
 
+- **Staff sign-in** at `/prijava`, one page for everyone: a username and a PIN of 4 to 6 digits. Waiters go
+  on to their dashboard, owners and managers to administration; five wrong PINs in a row lock the
+  username for 15 minutes. (Demo only for now: on a Supabase database staff still sign in with
+  email and password until PINs are added to the database.)
 - **Guests:** menu by QR code, search, product options, cart, order notes, live tracking with a
   countdown, earlier orders, "Call waiter" (tables only).
 - **Waiters:** new / active / finished orders, accept with a preparation time or reject with a
@@ -62,8 +66,9 @@ Open http://localhost:5173.
 
 Without any configuration the app runs in **demo mode**: data stays in the browser, and tabs of
 the same browser exchange orders live. Open a guest (`/t/demo-sto-7`, or the room
-`/t/demo-soba-214`) and the waiter (`/waiter`) in two tabs side by side. Administration is at
-`/admin` (in the demo, pick the owner Jelena or the manager Nikola); guests see menu changes as
+`/t/demo-soba-214`) and the waiter (`/waiter`) in two tabs side by side. Staff sign in at
+`/prijava`, which lists the demo accounts with their usernames and PINs — a click fills one in.
+Administration is at `/admin` (the owner Jelena or the manager Nikola); guests see menu changes as
 soon as they reload the menu.
 
 The demo starts as Stočić Hotel, with 12 tables and 90 rooms (101–130, 201–230, 301–330). The
@@ -213,10 +218,11 @@ src/
   i18n/          sr.json, en.json, index.tsx (translations, plurals, formats)
   features/
     guest/       menu, product details, cart, order tracking
-    waiter/      sign-in, dashboard, order cards, tables, rejecting
+    login/       staff sign-in (/prijava) for waiters, owners and managers
+    waiter/      dashboard, order cards, tables, rejecting
     admin/       overview, menu, tables and rooms with QR codes, staff, settings
     home/        home page (and the demo's edition switch)
-  components/    buttons, badges, dialog, switch, toasts, staff sign-in
+  components/    buttons, badges, dialog, switch, toasts
   lib/           live data, clock, statuses, editions, sound, QR cards and PDF, image resizing
 supabase/
   migrations/    schema, RLS, functions, realtime — see the table above

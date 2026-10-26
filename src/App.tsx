@@ -1,8 +1,9 @@
 /**
- * Routes — the four ways into Stočić.
+ * Routes — the ways into Stočić.
  *
  *   /           home: demo links, or the staff entry points on a real database
  *   /t/:token   the guest menu behind a table's or a room's QR code
+ *   /prijava    staff sign-in; waiters go on to /waiter, owners and managers to /admin
  *   /waiter     the waiter dashboard
  *   /admin/*    administration, owners and managers only
  *
@@ -19,6 +20,7 @@ import { ToastProvider } from './components/Toast';
 
 const Home = lazy(() => import('./features/home/Home'));
 const GuestApp = lazy(() => import('./features/guest/GuestApp'));
+const LoginPage = lazy(() => import('./features/login/LoginPage'));
 const WaiterApp = lazy(() => import('./features/waiter/WaiterApp'));
 const AdminApp = lazy(() => import('./features/admin/AdminApp'));
 
@@ -33,6 +35,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<ToastProvider><Home /></ToastProvider>} />
           <Route path="/t/:token" element={<GuestApp />} />
+          <Route path="/prijava" element={<LoginPage />} />
           <Route path="/waiter" element={<WaiterApp />} />
           <Route path="/admin/*" element={<AdminApp />} />
           <Route path="*" element={<NotFound />} />

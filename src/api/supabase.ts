@@ -167,6 +167,8 @@ export function createSupabaseBackend(url: string, key: string): Backend {
   return {
     mode: 'supabase',
     serverOffset: () => offset,
+    // PINs are not in the database yet, so staff sign in with email and password here.
+    staffSignIn: 'email',
 
     async loadTable(token) {
       const data = await rpc<TableMenu | null>(guest, 'guest_table', { p_token: token });
@@ -226,6 +228,10 @@ export function createSupabaseBackend(url: string, key: string): Backend {
         throw new ApiError('not_staff');
       }
       return session;
+    },
+
+    async signInWithPin() {
+      throw new ApiError('forbidden');
     },
 
     async signOut() {

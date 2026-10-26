@@ -20,6 +20,13 @@ function open(path: string, lang: 'sr' | 'en' = 'sr') {
 
 const find = (text: string | RegExp) => screen.findByText(text, undefined, { timeout: 4000 });
 
+/** Types a username and PIN into the sign-in form and submits it. */
+function signIn(username: string, pin: string, submit = 'Prijavi se') {
+  fireEvent.change(screen.getByLabelText(/Korisničko ime|Username/), { target: { value: username } });
+  fireEvent.change(screen.getByLabelText('PIN'), { target: { value: pin } });
+  fireEvent.click(screen.getByRole('button', { name: submit }));
+}
+
 describe('guest', () => {
   it('opens the menu of the scanned table, in Serbian', async () => {
     open('/t/demo-sto-7');
@@ -63,11 +70,48 @@ describe('staff', () => {
     expect(screen.getAllByText('Čeka potvrdu').length).toBeGreaterThan(0);
   });
 
-  it('the admin sign-in offers only the owner and managers', async () => {
-    open('/admin', 'en');
-    expect(await find('Jelena Marković')).toBeTruthy();
-    expect(screen.getByText('Nikola Jovanović')).toBeTruthy();
-    expect(screen.queryByText('Ana Petrović')).toBeNull();
+  it('/waiter without a session goes to the sign-in, where a demo account fills the form', async () => {
+    open('/waiter');
+    expect(await find('Prijava za osoblje')).toBeTruthy();
+    expect(new URLSearchParams(window.location.search).get('next')).toBe('/waiter');
+    fireEvent.click(screen.getByRole('button', { name: /Ana Petrović/ }));
+    expect((screen.getByLabelText('Korisničko ime') as HTMLInputElement).value).toBe('ana');
+    expect((screen.getByLabelText('PIN') as HTMLInputElement).value).toBe('641735');
+    fireEvent.click(screen.getByRole('button', { name: 'Prijavi se' }));
+    expect(await find('Sto 3')).toBeTruthy();
+    expect(window.location.pathname).toBe('/waiter');
+  });
+
+  it('a manager goes back to the admin page they asked for', async () => {
+    open('/admin/menu', 'en');
+    expect(await find('Staff sign-in')).toBeTruthy();
+    signIn('Nikola', '573024', 'Sign in');
+    expect(await find('Cappuccino')).toBeTruthy();
+    expect(window.location.pathname).toBe('/admin/menu');
+  });
+
+  it('a waiter sent from /admin lands on the waiter dashboard instead', async () => {
+    open('/prijava?next=/admin');
+    await find('Prijava za osoblje');
+    signIn('marko', '752846');
+    expect(await find('Sto 3')).toBeTruthy();
+    expect(window.location.pathname).toBe('/waiter');
+  });
+
+  it('a wrong PIN is refused and has to be typed again; an inactive account cannot sign in', async () => {
+    open('/prijava');
+    await find('Prijava za osoblje');
+    signIn('ana', '000000');
+    expect(await find('Pogrešno korisničko ime ili PIN.')).toBeTruthy();
+    expect((screen.getByLabelText('PIN') as HTMLInputElement).value).toBe('');
+    expect(screen.queryByText('Stefan Ristić')).toBeNull();
+  });
+
+  it('someone already signed in skips the form', async () => {
+    sessionStorage.setItem('stolic.demo.staff', 'jelena');
+    open('/prijava');
+    expect(await find('Porudžbine po satu')).toBeTruthy();
+    expect(window.location.pathname).toBe('/admin');
   });
 
   it('a waiter who reaches /admin is told they have no access', async () => {

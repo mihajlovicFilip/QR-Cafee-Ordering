@@ -7,6 +7,9 @@
  * status transitions, admin changes for owners and managers only, and the Stočić Café / Stočić
  * Hotel edition rules. demo.test.ts and tests/db check both against the same scenarios.
  *
+ * Staff sign in with a username and a PIN. Five wrong PINs in a row lock that username for 15
+ * minutes; the count is saved with the data, so reloading the page does not reset it.
+ *
  * Saved data carries a version (DemoDb.v) and read() upgrades anything older in place, so a
  * visitor's demo survives every new feature.
  */
@@ -18,6 +21,7 @@ import { computeOrderStats } from './stats';
 import {
   ApiError,
   MANAGER_ROLES,
+  PIN_MAX_LENGTH,
   STAFF_ROLES,
   TABLE_ZONES,
   type Backend,
@@ -41,6 +45,8 @@ const DB_KEY = 'stolic.demo.db.v1';
 const GUEST_KEY = 'stolic.demo.guest';
 const STAFF_KEY = 'stolic.demo.staff';
 const MIN = 60_000;
+const PIN_ATTEMPTS = 5;
+const PIN_LOCK = 15 * MIN;
 
 interface DemoOrder extends Order {
   guestId: string;
@@ -52,15 +58,23 @@ interface DemoCall extends WaiterCall {
 interface DemoTable extends DiningTable {
   active: boolean;
 }
+/** The PIN is kept as it is on purpose: the demo shows it on the sign-in page. */
+interface DemoStaffRow extends StaffMember {
+  username: string;
+  pin: string;
+  /** Wrong PINs in a row, and until when sign-in is locked after too many (epoch ms). */
+  failedPins: number;
+  lockedUntil: number;
+}
 interface DemoMenu {
   cafe: CafeSettings;
   categories: Category[];
   products: Product[];
   tables: DemoTable[];
-  staff: StaffMember[];
+  staff: DemoStaffRow[];
 }
 interface DemoDb extends DemoMenu {
-  /** 2 = tables and rooms, 3 = rooms have a floor, 4 = a month of history, 5 = editions. Older data is upgraded in read(). */
+  /** 2 = tables and rooms, 3 = rooms have a floor, 4 = a month of history, 5 = editions, 6 = usernames and PINs, 7 = Filip's account. Older data is upgraded in read(). */
   v?: number;
   orders: DemoOrder[];
   calls: DemoCall[];
@@ -120,7 +134,7 @@ function seedMenu(): DemoMenu {
     categories: DEMO_CATEGORIES,
     products: DEMO_PRODUCTS,
     tables: [...DEMO_TABLES, ...DEMO_ROOMS].map((t) => ({ ...t, active: true })),
-    staff: DEMO_STAFF,
+    staff: DEMO_STAFF.map((s) => ({ ...s, failedPins: 0, lockedUntil: 0 })),
   });
 }
 
@@ -194,7 +208,7 @@ function seed(): DemoDb {
   const n = 1001 + past.length; // the orders below are the newest, in this order
   return {
     ...seedMenu(),
-    v: 5,
+    v: 7,
     calls: [],
     orders: [
       ...past,
@@ -214,9 +228,13 @@ function read(): DemoDb {
   try {
     const raw = localStorage.getItem(DB_KEY);
     if (raw) {
-      const db = JSON.parse(raw) as DemoDb;
+      const saved = JSON.parse(raw) as DemoDb;
+      const version = saved.v;
       // Data saved before the admin panel existed has no menu of its own yet.
-      return upgrade(db.cafe ? db : { ...seedMenu(), ...db });
+      const db = upgrade(saved.cafe ? saved : { ...seedMenu(), ...saved });
+      // Kept right away: an upgrade makes up PINs, and they must not change on the next read.
+      if (db.v !== version) write(db, false);
+      return db;
     }
   } catch {
     /* fall through to a fresh seed */
@@ -231,9 +249,11 @@ function read(): DemoDb {
  * Before v3 rooms had no floor: take it from the number (402 → floor 4), like the SQL migration.
  * Before v4 there was only one day of history: add the rest of the month before the oldest order.
  * Before v5 there were no editions: rooms make it Stočić Hotel, like the SQL migration.
+ * Before v6 staff had no username or PIN: the seeded people get theirs, anyone added since a new one.
+ * Before v7 the seed had no Filip Mihajlović: people added to the seed later join saved data too.
  */
 function upgrade(db: DemoDb): DemoDb {
-  if (db.v === 5) return db;
+  if (db.v === 7) return db;
   if (!db.v || db.v < 2) {
     for (const t of db.tables) t.kind ??= 'table';
     for (const o of db.orders) o.tableKind ??= 'table';
@@ -252,9 +272,31 @@ function upgrade(db: DemoDb): DemoDb {
     db.orders.unshift(...past);
   }
   db.cafe.edition ??= db.tables.some((t) => t.kind === 'room') || db.orders.some((o) => o.tableKind === 'room') ? 'hotel' : 'cafe';
-  db.v = 5;
+  for (const s of db.staff) {
+    if (s.username) continue;
+    const seeded = DEMO_STAFF.find((x) => x.id === s.id);
+    Object.assign(s, { username: seeded?.username ?? newUsername(db, s.email ?? s.name), pin: seeded?.pin ?? newPin(), failedPins: 0, lockedUntil: 0 });
+  }
+  for (const seeded of DEMO_STAFF) {
+    if (db.staff.some((s) => s.id === seeded.id)) continue;
+    const username = db.staff.some((s) => s.username === seeded.username) ? newUsername(db, seeded.username) : seeded.username;
+    db.staff.push({ ...structuredClone(seeded), username, failedPins: 0, lockedUntil: 0 });
+  }
+  db.v = 7;
   return db;
 }
+
+/** A free username from an email or a name: "ana.p@lipa.rs" → "ana.p", and "ana.p2" when that is taken. */
+function newUsername(db: DemoDb, from: string): string {
+  const base =
+    from.toLowerCase().split('@')[0].replace(/đ/g, 'dj').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9._-]+/g, '.').replace(/^\.+|\.+$/g, '').slice(0, 24) || 'clan';
+  let name = base;
+  for (let i = 2; db.staff.some((s) => s.username === name); i++) name = `${base}${i}`;
+  return name;
+}
+
+const newPin = () => String(Math.floor(Math.random() * 10 ** PIN_MAX_LENGTH)).padStart(PIN_MAX_LENGTH, '0');
 
 function checkFloor(floor: number | null): number | null {
   if (floor === null) return null;
@@ -483,6 +525,28 @@ export function createDemoBackend(): Backend {
     async signIn() {
       throw new ApiError('demo_mode');
     },
+    async signInWithPin(username, pin) {
+      await wait();
+      const now = Date.now();
+      const name = username.trim().toLowerCase();
+      // Saved even when the sign-in fails: that is what makes the lock work.
+      const result = mutate((db): { id: string } | { error: string } => {
+        const s = db.staff.find((x) => x.username === name);
+        if (!s) return { error: 'invalid_pin' };
+        if (s.lockedUntil > now) return { error: 'login_locked' };
+        if (s.active && s.pin === pin) {
+          s.failedPins = 0;
+          return { id: s.id };
+        }
+        s.failedPins += 1;
+        if (s.failedPins >= PIN_ATTEMPTS) Object.assign(s, { failedPins: 0, lockedUntil: now + PIN_LOCK });
+        return { error: 'invalid_pin' };
+      });
+      if ('error' in result) throw new ApiError(result.error);
+      const session = sessionFor(read(), result.id);
+      sessionStorage.setItem(STAFF_KEY, result.id);
+      return session;
+    },
     async signOut() {
       try {
         sessionStorage.removeItem(STAFF_KEY);
@@ -490,7 +554,8 @@ export function createDemoBackend(): Backend {
         /* ignore */
       }
     },
-    demoStaff: () => read().staff.filter((s) => s.active).map(({ id, name, role }) => ({ id, name, role })),
+    staffSignIn: 'pin',
+    demoStaff: () => read().staff.filter((s) => s.active).map(({ id, name, role, username, pin }) => ({ id, name, role, username, pin })),
     async demoSignIn(staffId) {
       await wait();
       const session = sessionFor(read(), staffId);
@@ -819,9 +884,9 @@ export function createDemoBackend(): Backend {
       await wait(60);
       const db = read();
       managerOrThrow(db);
-      return [...db.staff].sort(
-        (a, b) => Number(b.active) - Number(a.active) || STAFF_ROLES.indexOf(a.role) - STAFF_ROLES.indexOf(b.role) || a.name.localeCompare(b.name),
-      );
+      return db.staff
+        .map(({ id, name, role, active, email }) => ({ id, name, role, active, email }))
+        .sort((a, b) => Number(b.active) - Number(a.active) || STAFF_ROLES.indexOf(a.role) - STAFF_ROLES.indexOf(b.role) || a.name.localeCompare(b.name));
     },
 
     async updateStaff(staffId, role, active) {
@@ -854,7 +919,7 @@ export function createDemoBackend(): Backend {
           Object.assign(existing, { name, role: input.role, active: true });
           return { created: false };
         }
-        db.staff.push({ id: uid(), name, role: input.role, active: true, email });
+        db.staff.push({ id: uid(), name, role: input.role, active: true, email, username: newUsername(db, email), pin: newPin(), failedPins: 0, lockedUntil: 0 });
         return { created: true };
       });
     },

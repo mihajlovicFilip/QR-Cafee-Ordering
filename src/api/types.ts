@@ -142,10 +142,13 @@ export interface StaffSession {
   cafe: Cafe;
 }
 
+/** A demo account as the sign-in page lists it: the demo shows usernames and PINs on purpose. */
 export interface DemoStaff {
   id: string;
   name: string;
   role: string;
+  username: string;
+  pin: string;
 }
 
 // === Admin =============================================
@@ -154,6 +157,9 @@ export type StaffRole = 'owner' | 'manager' | 'waiter' | 'barista';
 export const STAFF_ROLES: StaffRole[] = ['owner', 'manager', 'waiter', 'barista'];
 /** Roles that may open /admin. The database enforces the same rule in public.is_manager(). */
 export const MANAGER_ROLES: string[] = ['owner', 'manager'];
+/** Staff PINs are digits only, this short or this long. */
+export const PIN_MIN_LENGTH = 4;
+export const PIN_MAX_LENGTH = 6;
 
 export const TABLE_ZONES = ['hall', 'garden', 'terrace', 'bar'] as const;
 export const CATEGORY_ICONS: CategoryIcon[] = ['coffee', 'tea', 'juice', 'breakfast', 'dessert', 'bar'];
@@ -273,8 +279,12 @@ export interface Backend {
   callWaiter(token: string): Promise<void>;
 
   // Staff
+  /** How staff sign in: username and PIN, or email and password (Supabase until PINs reach the database). */
+  staffSignIn: 'pin' | 'email';
   staffSession(): Promise<StaffSession | null>;
   signIn(email: string, password: string): Promise<StaffSession>;
+  /** Too many wrong PINs in a row lock the username for a while (login_locked). */
+  signInWithPin(username: string, pin: string): Promise<StaffSession>;
   signOut(): Promise<void>;
   demoStaff(): DemoStaff[];
   demoSignIn(staffId: string): Promise<StaffSession>;

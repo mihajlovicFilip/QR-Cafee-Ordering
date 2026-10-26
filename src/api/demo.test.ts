@@ -5,7 +5,7 @@
  * starts from a freshly seeded demo (see src/test/setup.ts).
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createDemoBackend } from './demo';
 import { DEMO_CAFE, DEMO_CATEGORIES, DEMO_PRODUCTS, DEMO_STAFF, DEMO_TABLES } from './seedData';
 import { ApiError, type CartLineInput } from './types';
@@ -233,5 +233,75 @@ describe('administration is for owners and managers', () => {
     await signIn('nikola');
     expect(await outcome(api.updateStaff('ana', 'owner', true))).toBe('owner_required');
     expect(await outcome(api.updateStaff('nikola', 'waiter', true))).toBe('cannot_change_self');
+  });
+});
+
+describe('staff sign-in with a username and PIN', () => {
+  it('signs in with the right PIN, whatever the case of the username', async () => {
+    expect(api.staffSignIn).toBe('pin');
+    expect(await api.signInWithPin(' Ana ', '641735')).toMatchObject({ staffId: 'ana', role: 'waiter' });
+    expect((await api.staffSession())?.staffId).toBe('ana');
+  });
+
+  it('refuses a wrong PIN, an unknown username and an inactive account alike', async () => {
+    expect(await outcome(api.signInWithPin('ana', '000000'))).toBe('invalid_pin');
+    expect(await outcome(api.signInWithPin('nobody', '641735'))).toBe('invalid_pin');
+    expect(await outcome(api.signInWithPin('stefan', '863957'))).toBe('invalid_pin');
+    expect(await api.staffSession()).toBeNull();
+  });
+
+  it('locks a username for 15 minutes after five wrong PINs in a row, and only that one', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      for (let i = 0; i < 5; i++) expect(await outcome(api.signInWithPin('marko', '111111'))).toBe('invalid_pin');
+      expect(await outcome(api.signInWithPin('marko', '752846'))).toBe('login_locked');
+      expect(await outcome(api.signInWithPin('ana', '641735'))).toBe('ok');
+      vi.setSystemTime(Date.now() + 15 * MIN + 1000);
+      expect(await outcome(api.signInWithPin('marko', '752846'))).toBe('ok');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('a right PIN starts the count again', async () => {
+    for (let i = 0; i < 4; i++) await outcome(api.signInWithPin('marko', '111111'));
+    expect(await outcome(api.signInWithPin('marko', '752846'))).toBe('ok');
+    for (let i = 0; i < 4; i++) expect(await outcome(api.signInWithPin('marko', '111111'))).toBe('invalid_pin');
+    expect(await outcome(api.signInWithPin('marko', '752846'))).toBe('ok');
+  });
+
+  it('shows PINs on the demo sign-in, never in the admin staff list', async () => {
+    expect(api.demoStaff().find((s) => s.id === 'ana')).toMatchObject({ username: 'ana', pin: '641735' });
+    await signIn('jelena');
+    for (const member of await api.cafeStaff('demo-lipa')) expect(Object.keys(member).sort()).toEqual(['active', 'email', 'id', 'name', 'role']);
+  });
+
+  it('gives a new member a free username and a PIN they can sign in with', async () => {
+    await signIn('jelena');
+    await api.inviteStaff('demo-lipa', { name: 'Đorđe Novak', email: 'Ana@druga.rs', role: 'waiter', password: '' });
+    const added = api.demoStaff().find((s) => s.name === 'Đorđe Novak')!;
+    expect(added.username).toBe('ana2');
+    expect(added.pin).toMatch(/^\d{6}$/);
+    await api.signOut();
+    expect((await api.signInWithPin(added.username, added.pin)).name).toBe('Đorđe Novak');
+  });
+
+  it('upgrades demo data saved before PINs: seeded people get theirs, anyone added since a new one', async () => {
+    const staff = [...DEMO_STAFF.map(({ username: _u, pin: _p, ...s }) => s), { id: 'x', name: 'Đurđa Šarić', role: 'waiter', active: true, email: null }];
+    localStorage.setItem('stolic.demo.db.v1', JSON.stringify({ v: 5, cafe: DEMO_CAFE, categories: DEMO_CATEGORIES, products: DEMO_PRODUCTS, staff, tables: DEMO_TABLES.map((t) => ({ ...t, active: true })), orders: [], calls: [] }));
+    const accounts = api.demoStaff();
+    expect(accounts.find((s) => s.id === 'ana')).toMatchObject({ username: 'ana', pin: '641735' });
+    const added = accounts.find((s) => s.id === 'x')!;
+    expect(added.username).toBe('djurdja.saric');
+    expect((await api.signInWithPin(added.username, added.pin)).staffId).toBe('x');
+  });
+
+  it('Filip Mihajlović signs in as an owner with PIN 1542, also in demo data saved before his account', async () => {
+    expect(await api.signInWithPin('filip', '1542')).toMatchObject({ name: 'Filip Mihajlović', role: 'owner' });
+    await api.signOut();
+    const staff = DEMO_STAFF.filter((s) => s.id !== 'filip').map((s) => ({ ...s, failedPins: 0, lockedUntil: 0 }));
+    localStorage.setItem('stolic.demo.db.v1', JSON.stringify({ v: 6, cafe: DEMO_CAFE, categories: DEMO_CATEGORIES, products: DEMO_PRODUCTS, staff, tables: DEMO_TABLES.map((t) => ({ ...t, active: true })), orders: [], calls: [] }));
+    expect(api.demoStaff().find((s) => s.id === 'filip')).toMatchObject({ username: 'filip', pin: '1542', role: 'owner' });
+    expect((await api.signInWithPin('filip', '1542')).role).toBe('owner');
   });
 });
